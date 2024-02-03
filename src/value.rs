@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 /// A JVM value.
 #[derive(Clone, Copy, Debug)]
 pub enum MistValue {
@@ -42,11 +44,7 @@ macro_rules! mist_value_into {
         if let Self::$variant(inner) = self {
           inner
         } else {
-          panic!(
-            "Could not convert {} to {}",
-            stringify!($variant),
-            stringify!($type)
-          )
+          panic!("Could not convert {:?} to {}", self, stringify!($type))
         }
       }
     }
@@ -83,5 +81,25 @@ mist_value_into!(usize, ObjectReference);
 impl Default for MistValue {
   fn default() -> Self {
     Self::Integer(i32::default())
+  }
+}
+
+impl TryFrom<Option<Ordering>> for MistValue {
+  type Error = ();
+
+  fn try_from(value: Option<Ordering>) -> Result<Self, Self::Error> {
+    value
+      .and_then(|ordering| Some(Self::from(ordering)))
+      .ok_or(())
+  }
+}
+
+impl From<Ordering> for MistValue {
+  fn from(value: Ordering) -> Self {
+    match value {
+      Ordering::Less => Self::Integer(-1),
+      Ordering::Equal => Self::Integer(0),
+      Ordering::Greater => Self::Integer(1),
+    }
   }
 }

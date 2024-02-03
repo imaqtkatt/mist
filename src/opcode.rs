@@ -407,7 +407,7 @@ pub const LDC_W: Opcode = 0x13;
 pub const LDC2_W: Opcode = 0x14;
 
 /// Divide long.
-pub const LDIV: Opcode =  0x6d;
+pub const LDIV: Opcode = 0x6d;
 
 /// Load long from local variable.
 pub const LLOAD: Opcode = 0x16;
