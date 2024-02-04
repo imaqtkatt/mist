@@ -5,6 +5,7 @@ pub mod opcode;
 pub mod run;
 pub mod stack;
 pub mod value;
+pub mod class;
 
 fn main() {
   let mut rt = RuntimeContext::new(&[
