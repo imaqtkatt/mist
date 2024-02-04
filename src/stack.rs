@@ -145,6 +145,12 @@ impl MistStack {
     self.push(MistValue::Double(float as f64));
   }
 
+  /// [crate::opcode::F2I].
+  pub fn f2i(&mut self) {
+    let float: f32 = self.pop().into();
+    self.push(MistValue::Integer(float as i32));
+  }
+
   /// [crate::opcode::F2L]
   pub fn f2l(&mut self) {
     let float: f32 = self.pop().into();
@@ -329,7 +335,7 @@ impl MistStack {
   pub fn isub(&mut self) {
     let rhs: i32 = self.pop().into();
     let lhs: i32 = self.pop().into();
-    self.push(MistValue::Integer(lhs >> rhs));
+    self.push(MistValue::Integer(lhs - rhs));
   }
 
   /// [crate::opcode::IUSHR].
