@@ -1,17 +1,17 @@
-pub const CLASS: u16 = 7;
-pub const FIELD_REF: u16 = 9;
-pub const METHOD_REF: u16 = 10;
-pub const INTERFACE_METHOD_REF: u16 = 11;
-pub const STRING: u16 = 8;
-pub const INTEGER: u16 = 3;
-pub const FLOAT: u16 = 4;
-pub const LONG: u16 = 5;
-pub const DOUBLE: u16 = 6;
-pub const NAME_AND_TYPE: u16 = 12;
-pub const UTF_8: u16 = 1;
-pub const METHOD_HANDLE: u16 = 15;
-pub const METHOD_TYPE: u16 = 16;
-pub const INVOKE_DYNAMIC: u16 = 18;
+pub const CLASS: u8 = 7;
+pub const FIELD_REF: u8 = 9;
+pub const METHOD_REF: u8 = 10;
+pub const INTERFACE_METHOD_REF: u8 = 11;
+pub const STRING: u8 = 8;
+pub const INTEGER: u8 = 3;
+pub const FLOAT: u8 = 4;
+pub const LONG: u8 = 5;
+pub const DOUBLE: u8 = 6;
+pub const NAME_AND_TYPE: u8 = 12;
+pub const UTF_8: u8 = 1;
+pub const METHOD_HANDLE: u8 = 15;
+pub const METHOD_TYPE: u8 = 16;
+pub const INVOKE_DYNAMIC: u8 = 18;
 
 #[derive(Clone, Debug)]
 pub enum Entry {

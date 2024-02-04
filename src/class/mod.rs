@@ -7,6 +7,7 @@ use std::{fs::File, io::Read, path::Path};
 use self::{
   field::FieldInfo,
   method::{AttributeInfo, MethodInfo},
+  pool::MethodRefInfo,
 };
 
 /// Declared public; may be accessed from outside its package.
@@ -69,5 +70,112 @@ pub struct Reader<R: Read> {
 impl<R: Read> Reader<R> {
   pub fn new(buf: R) -> Self {
     Self { buf }
+  }
+}
+
+impl<R: Read> Reader<R> {
+  pub fn read_header(&mut self) -> std::io::Result<(u32, u16, u16, u16)> {
+    let mut magic_buf = [0u8; 4];
+    self.buf.read_exact(&mut magic_buf)?;
+
+    if magic_buf != [0xCA, 0xFE, 0xBA, 0xBE] {
+      panic!("Is not a .class file.");
+    }
+    let magic = u32::from_be_bytes(magic_buf);
+
+    let mut minor_version_buf = [0u8; 2];
+    self.buf.read_exact(&mut minor_version_buf)?;
+    let minor_verson = u16::from_be_bytes(minor_version_buf);
+
+    let mut major_version_buf = [0u8; 2];
+    self.buf.read_exact(&mut major_version_buf)?;
+    let major_version = u16::from_be_bytes(major_version_buf);
+
+    let mut constant_pool_count_buf = [0u8; 2];
+    self.buf.read_exact(&mut constant_pool_count_buf)?;
+    let constant_pool_count = u16::from_be_bytes(constant_pool_count_buf);
+
+    Ok((magic, minor_verson, major_version, constant_pool_count))
+  }
+
+  pub fn read_constant_pool(
+    &mut self,
+    constant_pool_count: u16,
+  ) -> std::io::Result<()> {
+    let constant_pool_count = constant_pool_count - 1;
+    let mut constant_pool_counter = 0;
+    let mut constant_pool_entries =
+      Vec::with_capacity(constant_pool_count as usize);
+
+    while constant_pool_counter < constant_pool_count {
+      constant_pool_counter += 1;
+      let mut tag_buf = [0u8; 1];
+      self.buf.read_exact(&mut tag_buf)?;
+      let tag = u8::from_be_bytes(tag_buf);
+
+      let item = match tag {
+        pool::UTF_8 => {
+          let mut len_buf = [0u8; 2];
+          self.buf.read_exact(&mut len_buf)?;
+          let len = u16::from_be_bytes(len_buf);
+
+          let mut buf = vec![0u8; len as usize];
+          self.buf.read_exact(&mut buf[..])?;
+
+          let bytes = String::from_utf8_lossy(&buf);
+          let bytes = String::from(bytes);
+
+          pool::Entry::Utf8(pool::Utf8Info {
+            tag,
+            length: len,
+            bytes,
+          })
+        }
+        pool::CLASS => {
+          let mut buf = [0u8; 2];
+          self.buf.read_exact(&mut buf)?;
+
+          let name_index = u16::from_be_bytes(buf);
+
+          pool::Entry::Class(pool::ClassInfo { tag, name_index })
+        }
+        pool::NAME_AND_TYPE => {
+          let mut buf = [0u8; 4];
+          self.buf.read_exact(&mut buf)?;
+
+          let [a, b, c, d] = buf;
+
+          let index = u16::from_be_bytes([a, b]);
+          let descriptor_index = u16::from_be_bytes([c, d]);
+
+          pool::Entry::NameAndType(pool::NameAndTypeInfo {
+            tag,
+            index,
+            descriptor_index,
+          })
+        }
+        pool::METHOD_REF => {
+          let mut buf = [0u8; 4];
+          self.buf.read_exact(&mut buf)?;
+
+          let [a, b, c, d] = buf;
+
+          let class_index = u16::from_be_bytes([a, b]);
+          let name_and_type_index = u16::from_be_bytes([c, d]);
+
+          pool::Entry::MethodRef(pool::MethodRefInfo {
+            tag,
+            class_index,
+            name_and_type_index,
+          })
+        }
+        other => panic!("{other:x}"),
+      };
+      constant_pool_entries.push(item);
+    }
+
+    println!("{constant_pool_entries:?}");
+
+    Ok(())
   }
 }
