@@ -29,10 +29,6 @@ fn main() {
 
   let file = File::open("./App.class").unwrap();
   let mut reader = class::Reader::new(file);
-  let (magic, minor_version, major_version, constant_pool_count) =
-    reader.read_header().unwrap();
-  println!(
-    "{magic:x}, {minor_version:x}, {major_version:x}, {constant_pool_count:x}"
-  );
-  reader.read_constant_pool(constant_pool_count).unwrap();
+  let class = reader.read_class().unwrap();
+  println!("{class:?}");
 }

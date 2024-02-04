@@ -22,7 +22,6 @@ impl<'bytecode> RuntimeContext<'bytecode> {
     loop {
       let instruction = self.fetch(&mut ip);
 
-      println!("{instruction:x}");
       match instruction {
         opcode::ACONST_NULL => stack.aconst_null(),
 
