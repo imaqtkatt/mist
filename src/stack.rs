@@ -386,6 +386,20 @@ impl MistStack {
     self.push(MistValue::Long(lhs & rhs));
   }
 
+  pub fn lcmp(&mut self) {
+    let value1: i64 = self.pop().into();
+    let value2: i64 = self.pop().into();
+    if value1 > value2 {
+      self.push(MistValue::Integer(1));
+    } else if value1 == value2 {
+      self.push(MistValue::Integer(0));
+    } else if value1 < value2 {
+      self.push(MistValue::Integer(-1));
+    } else {
+      unreachable!();
+    }
+  }
+
   /// Push long.
   pub fn lconst(&mut self, long: i64) {
     self.push(MistValue::Long(long));

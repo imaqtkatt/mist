@@ -411,7 +411,7 @@ impl<'bytecode> RuntimeContext<'bytecode> {
         // Value needs to be of type int.
         opcode::IFLE => {
           let value: i32 = stack.pop().into();
-          if value > 0 {
+          if value <= 0 {
             let branchbyte1 = self.program[ip] as usize;
             let branchbyte2 = self.program[ip + 1] as usize;
             ip = branchbyte1 << 8 | branchbyte2;
@@ -443,6 +443,170 @@ impl<'bytecode> RuntimeContext<'bytecode> {
             ip += 2;
           }
         }
+
+        opcode::IINC => unimplemented!(),
+
+        opcode::ILOAD => {
+          let load = self.local.load(self.fetch(&mut ip) as usize);
+          stack.push(load);
+        }
+        opcode::ILOAD_0 => stack.push(self.local.load(0)),
+        opcode::ILOAD_1 => stack.push(self.local.load(1)),
+        opcode::ILOAD_2 => stack.push(self.local.load(2)),
+        opcode::ILOAD_3 => stack.push(self.local.load(3)),
+
+        opcode::IMUL => stack.imul(),
+
+        opcode::INEG => stack.ineg(),
+
+        opcode::INSTANCEOF => unimplemented!(),
+
+        opcode::INVOKEDYNAMIC => unimplemented!(),
+
+        opcode::INVOKEINTERFACE => unimplemented!(),
+
+        opcode::INVOKESPECIAL => unimplemented!(),
+
+        opcode::INVOKESTATIC => unimplemented!(),
+
+        opcode::INVOKEVIRTUAL => unimplemented!(),
+
+        opcode::IOR => stack.ior(),
+
+        opcode::IREM => stack.irem(),
+
+        // The current method must have return type boolean, byte, short, char, or int.
+        opcode::IRETURN => break Some(stack.pop()),
+
+        opcode::ISHL => stack.ishl(),
+
+        opcode::ISHR => stack.ishr(),
+
+        opcode::ISTORE => {
+          let index = self.fetch(&mut ip) as usize;
+          self.local.store(index, stack.pop());
+        }
+        opcode::ISTORE_0 => self.local.store(0, stack.pop()),
+        opcode::ISTORE_1 => self.local.store(1, stack.pop()),
+        opcode::ISTORE_2 => self.local.store(2, stack.pop()),
+        opcode::ISTORE_3 => self.local.store(3, stack.pop()),
+
+        opcode::ISUB => stack.isub(),
+
+        opcode::IUSHR => stack.iushr(),
+
+        opcode::JSR => unimplemented!(),
+
+        opcode::JSR_W => unimplemented!(),
+
+        opcode::L2D => stack.l2d(),
+        opcode::L2F => stack.l2f(),
+        opcode::L2I => stack.l2i(),
+
+        opcode::LADD => stack.ladd(),
+
+        opcode::LALOAD => unimplemented!(),
+
+        opcode::LAND => stack.land(),
+
+        opcode::LASTORE => unimplemented!(),
+
+        opcode::LCMP => stack.lcmp(),
+
+        opcode::LCONST_0 => stack.lconst(0i64),
+        opcode::LCONST_1 => stack.lconst(1i64),
+
+        opcode::LDC => unimplemented!(),
+        opcode::LDC_W => unimplemented!(),
+        opcode::LDC2_W => unimplemented!(),
+
+        opcode::LDIV => stack.ldiv(),
+
+        opcode::LLOAD => {
+          let load = self.local.load(self.fetch(&mut ip) as usize);
+          stack.push(load);
+        }
+        opcode::LLOAD_0 => stack.push(self.local.load(0)),
+        opcode::LLOAD_1 => stack.push(self.local.load(1)),
+        opcode::LLOAD_2 => stack.push(self.local.load(2)),
+        opcode::LLOAD_3 => stack.push(self.local.load(3)),
+
+        opcode::LMUL => stack.lmul(),
+
+        opcode::LNEG => stack.lneg(),
+
+        opcode::LOOKUPSWTICH => unimplemented!(),
+
+        opcode::LOR => stack.lor(),
+
+        opcode::LREM => stack.lrem(),
+
+        opcode::LRETURN => break Some(stack.pop()),
+
+        opcode::LSHL => stack.lshl(),
+
+        opcode::LSHR => stack.lshr(),
+
+        opcode::LSTORE => {
+          let index = self.fetch(&mut ip) as usize;
+          self.local.store(index, stack.pop());
+        }
+        opcode::LSTORE_0 => self.local.store(0, stack.pop()),
+        opcode::LSTORE_1 => self.local.store(1, stack.pop()),
+        opcode::LSTORE_2 => self.local.store(2, stack.pop()),
+        opcode::LSTORE_3 => self.local.store(3, stack.pop()),
+
+        opcode::LSUB => stack.lsub(),
+
+        opcode::LXOR => stack.lxor(),
+
+        opcode::MONITORENTER => unimplemented!(),
+        opcode::MONITOREXIT => unimplemented!(),
+
+        opcode::MULTIANEWARRAY => unimplemented!(),
+
+        opcode::NEW => unimplemented!(),
+
+        opcode::NOP => {}
+
+        opcode::POP => _ = stack.pop(),
+
+        opcode::POP2 => {
+          // TODO: where each of value1 and value2 is a value of a category 1 computational type
+          _ = stack.pop();
+          _ = stack.pop();
+        }
+
+        opcode::PUTFIELD => unimplemented!(),
+
+        opcode::PUTSTATIC => unimplemented!(),
+
+        opcode::RET => {
+          let _index = self.fetch(&mut ip);
+          unimplemented!();
+        }
+
+        opcode::SALOAD => unimplemented!(),
+
+        opcode::SASTORE => unimplemented!(),
+
+        opcode::SIPUSH => {
+          let byte1 = self.program[ip] as u32;
+          let byte2 = self.program[ip + 1] as u32;
+          let value = (byte1 << 8 | byte2) as i16;
+          stack.push(MistValue::Short(value));
+        }
+
+        opcode::SWAP => {
+          let value1 = stack.pop();
+          let value2 = stack.pop();
+          stack.push(value1);
+          stack.push(value2);
+        }
+
+        opcode::TABLESWITCH => unimplemented!(),
+
+        opcode::WIDE => unimplemented!(),
 
         other => panic!("Found illegal bytecode '{other:x}'."),
       }
