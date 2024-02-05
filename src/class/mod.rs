@@ -248,7 +248,7 @@ impl<R: Read> Reader<R> {
 
   pub fn read_fields(
     &mut self,
-    constant_pool: &Vec<pool::Entry>,
+    constant_pool: &[pool::Entry],
   ) -> std::io::Result<(u16, Vec<FieldInfo>)> {
     let mut fields_count_buf = [0u8; 2];
     self.buf.read_exact(&mut fields_count_buf)?;
@@ -290,7 +290,7 @@ impl<R: Read> Reader<R> {
 
   pub fn read_field_attribute(
     &mut self,
-    constant_pool: &Vec<pool::Entry>,
+    constant_pool: &[pool::Entry],
   ) -> std::io::Result<field::AttributeInfo> {
     let mut buf = [0u8; 6];
     self.buf.read_exact(&mut buf)?;
@@ -385,14 +385,14 @@ impl<R: Read> Reader<R> {
           for _ in 0..line_number_table_length {
             let mut buf = [0u8; 4];
             self.buf.read_exact(&mut buf)?;
-            let [start_pc1, start_pc2, line_number1, line_number2] = buf;
+            let [_start_pc1, _start_pc2, _line_number1, _line_number2] = buf;
           }
 
-          return Ok(AttributeInfo {
+          Ok(AttributeInfo {
             attribute_name_index,
             attribute_length,
             info: Vec::new(),
-          });
+          })
         }
         "Code" => {
           let mut buf = [0u8; 8];
@@ -425,11 +425,11 @@ impl<R: Read> Reader<R> {
             println!("att_her: {a:?}");
           }
 
-          return Ok(AttributeInfo {
+          Ok(AttributeInfo {
             attribute_name_index,
             attribute_length,
             info: code,
-          });
+          })
         }
         other => unimplemented!("{other:?}"),
       }

@@ -17,13 +17,13 @@ impl Local {
 
   #[inline(always)]
   pub fn load(&self, index: usize) -> MistValue {
-    self.variables[index].clone()
+    self.variables[index]
   }
 
   /// [crate::opcode::IINC].
   #[inline(always)]
-  pub fn iinc(&mut self, index: usize) {
+  pub fn iinc(&mut self, index: usize, r#const: i32) {
     let int: i32 = self.variables[index].into();
-    self.variables[index] = MistValue::Integer(int + 1);
+    self.variables[index] = MistValue::Integer(int + r#const);
   }
 }

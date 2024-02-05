@@ -88,9 +88,7 @@ impl TryFrom<Option<Ordering>> for MistValue {
   type Error = ();
 
   fn try_from(value: Option<Ordering>) -> Result<Self, Self::Error> {
-    value
-      .and_then(|ordering| Some(Self::from(ordering)))
-      .ok_or(())
+    value.map(Self::from).ok_or(())
   }
 }
 

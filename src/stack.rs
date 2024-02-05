@@ -1,15 +1,10 @@
-use std::ops::Neg;
+use std::{cmp::Ordering, ops::Neg};
 
 use crate::value::MistValue;
 
+#[derive(Default)]
 pub struct MistStack {
   stack: Vec<MistValue>,
-}
-
-impl MistStack {
-  pub fn new() -> Self {
-    Self { stack: Vec::new() }
-  }
 }
 
 impl MistStack {
@@ -121,7 +116,7 @@ impl MistStack {
   /// [crate::opcode::DUP].
   pub fn dup(&mut self) {
     let value = self.pop();
-    self.push(value.clone());
+    self.push(value);
     self.push(value);
   }
 
@@ -129,7 +124,7 @@ impl MistStack {
   pub fn dup_x1(&mut self) {
     let value1 = self.pop();
     let value2 = self.pop();
-    self.push(value1.clone());
+    self.push(value1);
     self.push(value2);
     self.push(value1);
   }
@@ -386,17 +381,14 @@ impl MistStack {
     self.push(MistValue::Long(lhs & rhs));
   }
 
+  /// [crate::opcode::LCMP].
   pub fn lcmp(&mut self) {
     let value1: i64 = self.pop().into();
     let value2: i64 = self.pop().into();
-    if value1 > value2 {
-      self.push(MistValue::Integer(1));
-    } else if value1 == value2 {
-      self.push(MistValue::Integer(0));
-    } else if value1 < value2 {
-      self.push(MistValue::Integer(-1));
-    } else {
-      unreachable!();
+    match value1.cmp(&value2) {
+      Ordering::Less => self.push(MistValue::Integer(-1)),
+      Ordering::Equal => self.push(MistValue::Integer(0)),
+      Ordering::Greater => self.push(MistValue::Integer(1)),
     }
   }
 

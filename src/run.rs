@@ -17,7 +17,7 @@ impl<'bytecode> RuntimeContext<'bytecode> {
 impl<'bytecode> RuntimeContext<'bytecode> {
   pub fn run(&mut self) -> Option<MistValue> {
     let mut ip = 0;
-    let mut stack = MistStack::new();
+    let mut stack = MistStack::default();
 
     loop {
       let instruction = self.fetch(&mut ip);
@@ -443,7 +443,11 @@ impl<'bytecode> RuntimeContext<'bytecode> {
           }
         }
 
-        opcode::IINC => unimplemented!(),
+        opcode::IINC => {
+          let index = self.fetch(&mut ip) as usize;
+          let r#const = self.fetch(&mut ip) as i32;
+          self.local.iinc(index, r#const);
+        }
 
         opcode::ILOAD => {
           let load = self.local.load(self.fetch(&mut ip) as usize);
