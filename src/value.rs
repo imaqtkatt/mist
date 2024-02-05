@@ -37,14 +37,14 @@ impl MistValue {
   }
 }
 
-macro_rules! mist_value_into {
+macro_rules! from_mist_value {
   ($type:ty, $variant:ident) => {
-    impl Into<$type> for MistValue {
-      fn into(self) -> $type {
-        if let Self::$variant(inner) = self {
+    impl From<MistValue> for $type {
+      fn from(value: MistValue) -> Self {
+        if let MistValue::$variant(inner) = value {
           inner
         } else {
-          panic!("Could not convert {:?} to {}", self, stringify!($type))
+          panic!("Could not convert {:?} to {}", value, stringify!($type))
         }
       }
     }
@@ -68,15 +68,15 @@ impl From<char> for MistValue {
   }
 }
 
-mist_value_into!(bool, Boolean);
-mist_value_into!(i8, Byte);
-mist_value_into!(i16, Short);
-mist_value_into!(i32, Integer);
-mist_value_into!(f32, Float);
-mist_value_into!(i64, Long);
-mist_value_into!(f64, Double);
-mist_value_into!(char, Char);
-mist_value_into!(usize, ObjectReference);
+from_mist_value!(bool, Boolean);
+from_mist_value!(i8, Byte);
+from_mist_value!(i16, Short);
+from_mist_value!(i32, Integer);
+from_mist_value!(f32, Float);
+from_mist_value!(i64, Long);
+from_mist_value!(f64, Double);
+from_mist_value!(char, Char);
+from_mist_value!(usize, ObjectReference);
 
 impl Default for MistValue {
   fn default() -> Self {

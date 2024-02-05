@@ -60,6 +60,21 @@ pub struct Class {
   pub attributes: Vec<AttributeInfo>,
 }
 
+impl Class {
+  pub fn find_method(&self, method_name: &str) -> Option<&MethodInfo> {
+    for method in self.methods.iter() {
+      let cp_entry = &self.constant_pool[method.name_index as usize];
+      if let Entry::Utf8(Utf8Info { bytes, .. }) = cp_entry {
+        if bytes == method_name {
+          return Some(method);
+        }
+      }
+    }
+
+    None
+  }
+}
+
 pub struct Reader<R: Read> {
   buf: R,
 }
@@ -189,7 +204,7 @@ impl<R: Read> Reader<R> {
   }
 
   pub fn read_type_info(&mut self) -> std::io::Result<(u16, u16, u16, u16)> {
-    Ok(self.buf.read_4_u16()?)
+    self.buf.read_4_u16()
   }
 
   pub fn read_interfaces(
@@ -241,28 +256,29 @@ impl<R: Read> Reader<R> {
 
   pub fn read_field_attribute(
     &mut self,
-    _constant_pool: &[pool::Entry],
+    constant_pool: &[pool::Entry],
   ) -> std::io::Result<AttributeInfo> {
-    let attribute_name_index = self.buf.read_u16()?;
-    let attribute_length = self.buf.read_u32()?;
+    // let attribute_name_index = self.buf.read_u16()?;
+    // let attribute_length = self.buf.read_u32()?;
 
-    // println!("{:?}", constant_pool[attribute_name_index as usize]);
+    // // println!("{:?}", constant_pool[attribute_name_index as usize]);
 
-    let mut buf = vec![0; attribute_length as usize];
-    self.buf.read_exact(&mut buf[..])?;
+    // let mut buf = vec![0; attribute_length as usize];
+    // self.buf.read_exact(&mut buf[..])?;
 
-    let attribute_info = AttributeInfo {
-      attribute_name_index,
-      attribute_length,
-      info: attribute_info::Info::Bytes(buf),
-    };
+    // let attribute_info = AttributeInfo {
+    //   attribute_name_index,
+    //   attribute_length,
+    //   info: attribute_info::Info::Bytes(buf),
+    // };
 
-    Ok(attribute_info)
+    // Ok(attribute_info)
+    self.read_method_attribute(constant_pool)
   }
 
   pub fn read_methods(
     &mut self,
-    constant_pool: &Vec<pool::Entry>,
+    constant_pool: &[pool::Entry],
   ) -> std::io::Result<(u16, Vec<MethodInfo>)> {
     let methods_count = self.buf.read_u16()?;
 
@@ -302,7 +318,7 @@ impl<R: Read> Reader<R> {
 
   pub fn read_method_attribute(
     &mut self,
-    constant_pool: &Vec<pool::Entry>,
+    constant_pool: &[pool::Entry],
   ) -> std::io::Result<AttributeInfo> {
     let attribute_name_index = self.buf.read_u16()?;
     let attribute_length = self.buf.read_u32()?;
