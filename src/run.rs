@@ -1,4 +1,7 @@
-use crate::{local::Local, opcode, stack::MistStack, value::MistValue};
+use crate::{
+  class::attribute_info, local::Local, opcode, stack::MistStack,
+  value::MistValue,
+};
 
 pub struct RuntimeContext<'bytecode> {
   local: Local,
@@ -6,55 +9,44 @@ pub struct RuntimeContext<'bytecode> {
 }
 
 impl<'bytecode> RuntimeContext<'bytecode> {
-  pub fn new(program: &'bytecode [u8]) -> Self {
-    Self {
-      program,
-      local: Local::new(1 << 10),
-    }
+  pub fn run_code(code: &'bytecode attribute_info::Code) -> Option<MistValue> {
+    let local = Local::new(code.max_local as usize);
+    let stack = MistStack::new(code.max_stack as usize);
+
+    let mut rt = Self::new(&code.code, local);
+    rt.run(stack)
+  }
+
+  pub fn new(program: &'bytecode [u8], local: Local) -> Self {
+    Self { program, local }
   }
 }
 
 impl<'bytecode> RuntimeContext<'bytecode> {
-  pub fn run(&mut self) -> Option<MistValue> {
+  fn run(&mut self, mut stack: MistStack) -> Option<MistValue> {
     let mut ip = 0;
-    let mut stack = MistStack::default();
 
     loop {
       let instruction = self.fetch(&mut ip);
 
+      // println!("{instruction:x}");
       match instruction {
         opcode::ACONST_NULL => stack.aconst_null(),
 
         opcode::ALOAD => {
-          let load = self.local.load(self.fetch(&mut ip) as usize);
-          stack.push(load);
+          let index = self.fetch(&mut ip) as usize;
+          stack.push(self.local.load(index));
         }
-
-        opcode::ALOAD_0 => {
-          let load = self.local.load(0);
-          stack.push(load);
-        }
-
-        opcode::ALOAD_1 => {
-          let load = self.local.load(1);
-          stack.push(load);
-        }
-
-        opcode::ALOAD_2 => {
-          let load = self.local.load(2);
-          stack.push(load);
-        }
-
-        opcode::ALOAD_3 => {
-          let load = self.local.load(3);
-          stack.push(load);
-        }
+        opcode::ALOAD_0 => stack.push(self.local.load(0)),
+        opcode::ALOAD_1 => stack.push(self.local.load(1)),
+        opcode::ALOAD_2 => stack.push(self.local.load(2)),
+        opcode::ALOAD_3 => stack.push(self.local.load(3)),
 
         opcode::ARETURN => break Some(stack.pop()),
 
         opcode::ASTORE => {
-          let store = self.fetch(&mut ip);
-          self.local.store(store as usize, stack.pop());
+          let index = self.fetch(&mut ip);
+          self.local.store(index as usize, stack.pop());
         }
         opcode::ASTORE_0 => self.local.store(0, stack.pop()),
         opcode::ASTORE_1 => self.local.store(1, stack.pop()),
@@ -94,25 +86,13 @@ impl<'bytecode> RuntimeContext<'bytecode> {
         opcode::DDIV => stack.ddiv(),
 
         opcode::DLOAD => {
-          let load = self.local.load(self.fetch(&mut ip) as usize);
-          stack.push(load);
+          let index = self.fetch(&mut ip) as usize;
+          stack.push(self.local.load(index));
         }
-        opcode::DLOAD_0 => {
-          let load = self.local.load(0);
-          stack.push(load);
-        }
-        opcode::DLOAD_1 => {
-          let load = self.local.load(1);
-          stack.push(load);
-        }
-        opcode::DLOAD_2 => {
-          let load = self.local.load(2);
-          stack.push(load);
-        }
-        opcode::DLOAD_3 => {
-          let load = self.local.load(3);
-          stack.push(load);
-        }
+        opcode::DLOAD_0 => stack.push(self.local.load(0)),
+        opcode::DLOAD_1 => stack.push(self.local.load(1)),
+        opcode::DLOAD_2 => stack.push(self.local.load(2)),
+        opcode::DLOAD_3 => stack.push(self.local.load(3)),
 
         opcode::DMUL => stack.dmul(),
 
@@ -123,8 +103,8 @@ impl<'bytecode> RuntimeContext<'bytecode> {
         opcode::DRETURN => break Some(stack.pop()),
 
         opcode::DSTORE => {
-          let store = self.fetch(&mut ip);
-          self.local.store(store as usize, stack.pop());
+          let index = self.fetch(&mut ip);
+          self.local.store(index as usize, stack.pop());
         }
         opcode::DSTORE_0 => self.local.store(0, stack.pop()),
         opcode::DSTORE_1 => self.local.store(1, stack.pop()),
@@ -159,25 +139,13 @@ impl<'bytecode> RuntimeContext<'bytecode> {
         opcode::FDIV => stack.fdiv(),
 
         opcode::FLOAD => {
-          let load = self.local.load(self.fetch(&mut ip) as usize);
-          stack.push(load);
+          let index = self.fetch(&mut ip) as usize;
+          stack.push(self.local.load(index));
         }
-        opcode::FLOAD_0 => {
-          let float = self.local.load(0);
-          stack.push(float);
-        }
-        opcode::FLOAD_1 => {
-          let float = self.local.load(1);
-          stack.push(float);
-        }
-        opcode::FLOAD_2 => {
-          let float = self.local.load(2);
-          stack.push(float);
-        }
-        opcode::FLOAD_3 => {
-          let float = self.local.load(3);
-          stack.push(float);
-        }
+        opcode::FLOAD_0 => stack.push(self.local.load(0)),
+        opcode::FLOAD_1 => stack.push(self.local.load(1)),
+        opcode::FLOAD_2 => stack.push(self.local.load(2)),
+        opcode::FLOAD_3 => stack.push(self.local.load(3)),
 
         opcode::FMUL => stack.fmul(),
 
@@ -188,8 +156,8 @@ impl<'bytecode> RuntimeContext<'bytecode> {
         opcode::FRETURN => break Some(stack.pop()),
 
         opcode::FSTORE => {
-          let store = self.fetch(&mut ip);
-          self.local.store(store as usize, stack.pop());
+          let index = self.fetch(&mut ip);
+          self.local.store(index as usize, stack.pop());
         }
         opcode::FSTORE_0 => self.local.store(0, stack.pop()),
         opcode::FSTORE_1 => self.local.store(1, stack.pop()),
@@ -526,8 +494,8 @@ impl<'bytecode> RuntimeContext<'bytecode> {
         opcode::LDIV => stack.ldiv(),
 
         opcode::LLOAD => {
-          let load = self.local.load(self.fetch(&mut ip) as usize);
-          stack.push(load);
+          let index = self.fetch(&mut ip) as usize;
+          stack.push(self.local.load(index));
         }
         opcode::LLOAD_0 => stack.push(self.local.load(0)),
         opcode::LLOAD_1 => stack.push(self.local.load(1)),

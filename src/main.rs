@@ -1,6 +1,6 @@
 use std::fs::File;
 
-use crate::run::RuntimeContext;
+use crate::{class::attribute_info, run::RuntimeContext};
 
 pub mod class;
 pub mod local;
@@ -22,13 +22,17 @@ fn run() -> std::io::Result<()> {
   println!("{class:?}");
 
   let main_method = &class.methods[1];
-  let attribute_info = &main_method.attribute_info[0];
+  let attribute_info = &main_method.attributes[0];
 
   let info = &attribute_info.info;
 
-  let mut rt = RuntimeContext::new(info);
-  let result = rt.run();
-  println!("result: {result:?}");
+  match info {
+    attribute_info::Info::Code(code) => {
+      let result = RuntimeContext::run_code(code);
+      println!("result: {result:?}");
+    }
+    _ => eprintln!("Is not code"),
+  }
 
   Ok(())
 }

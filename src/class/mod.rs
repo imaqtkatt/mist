@@ -1,3 +1,4 @@
+pub mod attribute_info;
 pub mod field;
 pub mod method;
 pub mod pool;
@@ -7,8 +8,9 @@ use std::io::Read;
 use crate::class::pool::{Entry, Utf8Info};
 
 use self::{
+  attribute_info::{AttributeInfo, Code},
   field::FieldInfo,
-  method::{AttributeInfo, MethodInfo},
+  method::MethodInfo,
 };
 
 /// Declared public; may be accessed from outside its package.
@@ -290,8 +292,8 @@ impl<R: Read> Reader<R> {
 
   pub fn read_field_attribute(
     &mut self,
-    constant_pool: &[pool::Entry],
-  ) -> std::io::Result<field::AttributeInfo> {
+    _constant_pool: &[pool::Entry],
+  ) -> std::io::Result<AttributeInfo> {
     let mut buf = [0u8; 6];
     self.buf.read_exact(&mut buf)?;
     let [name1, name2, b1, b2, b3, b4] = buf;
@@ -299,15 +301,15 @@ impl<R: Read> Reader<R> {
     let attribute_name_index = u16::from_be_bytes([name1, name2]);
     let attribute_length = u32::from_be_bytes([b1, b2, b3, b4]);
 
-    println!("{:?}", constant_pool[attribute_name_index as usize]);
+    // println!("{:?}", constant_pool[attribute_name_index as usize]);
 
     let mut buf = vec![0; attribute_length as usize];
     self.buf.read_exact(&mut buf[..])?;
 
-    let attribute_info = field::AttributeInfo {
+    let attribute_info = AttributeInfo {
       attribute_name_index,
       attribute_length,
-      info: buf,
+      info: attribute_info::Info::Bytes(buf),
     };
 
     Ok(attribute_info)
@@ -331,28 +333,28 @@ impl<R: Read> Reader<R> {
 
       let access_flags = u16::from_be_bytes([flag1, flag2]);
       let name_index = u16::from_be_bytes([name1, name2]);
-      println!("name_index: {:?}", constant_pool[name_index as usize]);
+      // println!("name_index: {:?}", constant_pool[name_index as usize]);
       let descriptor_index = u16::from_be_bytes([desc1, desc2]);
-      println!(
-        "descriptor_index: {:?}",
-        constant_pool[descriptor_index as usize]
-      );
+      // println!(
+      //   "descriptor_index: {:?}",
+      //   constant_pool[descriptor_index as usize]
+      // );
       let attributes_count = u16::from_be_bytes([attr1, attr2]);
-      let attribute_info = Vec::with_capacity(attributes_count as usize);
-
-      let mut method_info = MethodInfo {
-        access_flags,
-        name_index,
-        descriptor_index,
-        attributes_count,
-        attribute_info,
-      };
+      let mut attributes = Vec::with_capacity(attributes_count as usize);
 
       // TODO: check if this is right
       for _ in 0..attributes_count {
         let attribute = self.read_method_attribute(constant_pool)?;
-        method_info.attribute_info.push(attribute);
+        attributes.push(attribute);
       }
+
+      let method_info = MethodInfo {
+        access_flags,
+        name_index,
+        descriptor_index,
+        attributes_count,
+        attributes,
+      };
 
       methods.push(method_info);
     }
@@ -363,7 +365,7 @@ impl<R: Read> Reader<R> {
   pub fn read_method_attribute(
     &mut self,
     constant_pool: &Vec<pool::Entry>,
-  ) -> std::io::Result<method::AttributeInfo> {
+  ) -> std::io::Result<AttributeInfo> {
     let mut buf = [0u8; 6];
     self.buf.read_exact(&mut buf)?;
     let [name1, name2, b1, b2, b3, b4] = buf;
@@ -371,10 +373,10 @@ impl<R: Read> Reader<R> {
     let attribute_name_index = u16::from_be_bytes([name1, name2]);
     let attribute_length = u32::from_be_bytes([b1, b2, b3, b4]);
 
-    let name = &constant_pool[attribute_name_index as usize];
+    let cp_entry = &constant_pool[attribute_name_index as usize];
 
     // TODO: refactor this messy code.
-    if let Entry::Utf8(Utf8Info { bytes, .. }) = name {
+    if let Entry::Utf8(Utf8Info { bytes, .. }) = cp_entry {
       match bytes.as_ref() {
         "LineNumberTable" => {
           let mut line_number_table_length_buf = [0u8; 2];
@@ -382,16 +384,31 @@ impl<R: Read> Reader<R> {
           let line_number_table_length =
             u16::from_be_bytes(line_number_table_length_buf);
 
+          let mut line_number_table =
+            Vec::with_capacity(line_number_table_length as usize);
           for _ in 0..line_number_table_length {
             let mut buf = [0u8; 4];
             self.buf.read_exact(&mut buf)?;
-            let [_start_pc1, _start_pc2, _line_number1, _line_number2] = buf;
+
+            let [start_pc1, start_pc2, line_number1, line_number2] = buf;
+
+            line_number_table.push(attribute_info::LineNumberTableInfo {
+              start_pc: u16::from_be_bytes([start_pc1, start_pc2]),
+              line_number: u16::from_be_bytes([line_number1, line_number2]),
+            });
           }
+
+          let line_number_table = attribute_info::LineNumberTable {
+            attribute_name_index,
+            attribute_length,
+            line_number_table_length,
+            line_number_table,
+          };
 
           Ok(AttributeInfo {
             attribute_name_index,
             attribute_length,
-            info: Vec::new(),
+            info: attribute_info::Info::LineNumberTable(line_number_table),
           })
         }
         "Code" => {
@@ -399,8 +416,8 @@ impl<R: Read> Reader<R> {
           self.buf.read_exact(&mut buf)?;
           let [stack1, stack2, local1, local2, l1, l2, l3, l4] = buf;
 
-          let _max_stack = u16::from_be_bytes([stack1, stack2]);
-          let _max_local = u16::from_be_bytes([local1, local2]);
+          let max_stack = u16::from_be_bytes([stack1, stack2]);
+          let max_local = u16::from_be_bytes([local1, local2]);
           let code_length = u32::from_be_bytes([l1, l2, l3, l4]);
 
           let mut code = vec![0; code_length as usize];
@@ -411,6 +428,7 @@ impl<R: Read> Reader<R> {
           let exception_table_length =
             u16::from_be_bytes(exception_table_length_buf);
 
+          let exception_table = Vec::new();
           for _ in 0..exception_table_length {
             let mut buf = [0u8; 8];
             self.buf.read_exact(&mut buf)?;
@@ -420,32 +438,33 @@ impl<R: Read> Reader<R> {
           self.buf.read_exact(&mut attributes_count_buf)?;
           let attributes_count = u16::from_be_bytes(attributes_count_buf);
 
+          let mut attributes = Vec::new();
           for _ in 0..attributes_count {
-            let a = self.read_method_attribute(constant_pool)?;
-            println!("att_her: {a:?}");
+            let attribute = self.read_method_attribute(constant_pool)?;
+            attributes.push(attribute);
           }
+
+          let code = Code {
+            max_stack,
+            max_local,
+            code_length,
+            code,
+            exception_table_length,
+            exception_table,
+            attributes_count,
+            attributes,
+          };
 
           Ok(AttributeInfo {
             attribute_name_index,
             attribute_length,
-            info: code,
+            info: attribute_info::Info::Code(code),
           })
         }
         other => unimplemented!("{other:?}"),
       }
     } else {
-      panic!();
+      panic!("Attribute name index '{attribute_name_index}' needs to point to a Utf-8 entry.");
     }
-
-    // let mut buf = vec![0; attribute_length as usize];
-    // self.buf.read_exact(&mut buf[..])?;
-
-    // let attribute_info = method::AttributeInfo {
-    //   attribute_name_index,
-    //   attribute_length,
-    //   info: buf,
-    // };
-
-    // Ok(attribute_info)
   }
 }

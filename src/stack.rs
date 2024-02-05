@@ -8,6 +8,13 @@ pub struct MistStack {
 }
 
 impl MistStack {
+  pub fn new(capacity: usize) -> Self {
+    let stack = Vec::with_capacity(capacity);
+    Self { stack }
+  }
+}
+
+impl MistStack {
   #[inline(always)]
   pub fn push(&mut self, value: MistValue) {
     self.stack.push(value);
