@@ -5,7 +5,7 @@ pub mod pool;
 
 use std::io::Read;
 
-use crate::class::pool::{Entry, Utf8Info};
+use crate::class::pool::Entry;
 
 use self::{
   attribute_info::{AttributeInfo, Code},
@@ -61,10 +61,25 @@ pub struct Class {
 }
 
 impl Class {
+  pub fn class_name(&self) -> Option<&Entry> {
+    let Entry::ClassInfo { name_index, .. } =
+      &self.constant_pool[self.this_class as usize]
+    else {
+      unreachable!()
+    };
+    if let utf8info @ Entry::Utf8Info { .. } =
+      &self.constant_pool[*name_index as usize]
+    {
+      Some(utf8info)
+    } else {
+      None
+    }
+  }
+
   pub fn find_method(&self, method_name: &str) -> Option<&MethodInfo> {
     for method in self.methods.iter() {
       let cp_entry = &self.constant_pool[method.name_index as usize];
-      if let Entry::Utf8(Utf8Info { bytes, .. }) = cp_entry {
+      if let Entry::Utf8Info { bytes, .. } = cp_entry {
         if bytes == method_name {
           return Some(method);
         }
@@ -149,7 +164,7 @@ impl<R: Read> Reader<R> {
     let mut constant_pool_entries = Vec::new();
     constant_pool_entries.resize(
       (constant_pool_count + 1) as usize,
-      pool::Entry::Integer(pool::IntegerInfo { tag: 0, bytes: 0 }),
+      pool::Entry::IntegerInfo { bytes: 0 },
     );
 
     while constant_pool_counter < constant_pool_count {
@@ -158,42 +173,36 @@ impl<R: Read> Reader<R> {
       let tag = self.buf.read_u8()?;
       let item = match tag {
         pool::UTF_8 => {
-          let len = self.buf.read_u16()?;
+          let length = self.buf.read_u16()?;
 
-          let mut buf = vec![0u8; len as usize];
+          let mut buf = vec![0u8; length as usize];
           self.buf.read_exact(&mut buf[..])?;
           let bytes =
             String::from_utf8(buf).expect("To be a valid UTF-8 String.");
 
-          pool::Entry::Utf8(pool::Utf8Info {
-            tag,
-            length: len,
-            bytes,
-          })
+          pool::Entry::Utf8Info { bytes }
         }
         pool::CLASS => {
           let name_index = self.buf.read_u16()?;
-          pool::Entry::Class(pool::ClassInfo { tag, name_index })
+          pool::Entry::ClassInfo { name_index }
         }
         pool::NAME_AND_TYPE => {
           let index = self.buf.read_u16()?;
           let descriptor_index = self.buf.read_u16()?;
 
-          pool::Entry::NameAndType(pool::NameAndTypeInfo {
-            tag,
+          pool::Entry::NameAndTypeInfo {
             index,
             descriptor_index,
-          })
+          }
         }
         pool::METHOD_REF => {
           let class_index = self.buf.read_u16()?;
           let name_and_type_index = self.buf.read_u16()?;
 
-          pool::Entry::MethodRef(pool::MethodRefInfo {
-            tag,
+          pool::Entry::MethodRefInfo {
             class_index,
             name_and_type_index,
-          })
+          }
         }
         other => todo!("{other:x}"),
       };
@@ -326,7 +335,7 @@ impl<R: Read> Reader<R> {
     let cp_entry = &constant_pool[attribute_name_index as usize];
 
     // TODO: refactor this messy code.
-    if let Entry::Utf8(Utf8Info { bytes, .. }) = cp_entry {
+    if let Entry::Utf8Info { bytes } = cp_entry {
       match bytes.as_ref() {
         "LineNumberTable" => {
           let line_number_table_length = self.buf.read_u16()?;
@@ -343,13 +352,12 @@ impl<R: Read> Reader<R> {
           let line_number_table = attribute_info::LineNumberTable {
             attribute_name_index,
             attribute_length,
-            line_number_table_length,
             line_number_table,
           };
 
           Ok(AttributeInfo {
             attribute_name_index,
-            attribute_length,
+            // attribute_length,
             info: attribute_info::Info::LineNumberTable(line_number_table),
           })
         }
@@ -377,7 +385,7 @@ impl<R: Read> Reader<R> {
 
           let attributes_count = self.buf.read_u16()?;
 
-          let mut attributes = Vec::new();
+          let mut attributes = Vec::with_capacity(attributes_count as usize);
           for _ in 0..attributes_count {
             let attribute = self.read_method_attribute(constant_pool)?;
             attributes.push(attribute);
@@ -388,15 +396,15 @@ impl<R: Read> Reader<R> {
             max_local,
             code_length,
             code,
-            exception_table_length,
+            // exception_table_length,
             exception_table,
-            attributes_count,
+            // attributes_count,
             attributes,
           };
 
           Ok(AttributeInfo {
             attribute_name_index,
-            attribute_length,
+            // attribute_length,
             info: attribute_info::Info::Code(code),
           })
         }

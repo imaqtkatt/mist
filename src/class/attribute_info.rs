@@ -3,7 +3,7 @@ use crate::opcode::Opcode;
 #[derive(Clone, Debug)]
 pub struct AttributeInfo {
   pub attribute_name_index: u16,
-  pub attribute_length: u32,
+  // pub attribute_length: u32,
   // pub info: Vec<u8>,
   pub info: Info,
 }
@@ -21,9 +21,7 @@ pub struct Code {
   pub max_local: u16,
   pub code_length: u32,
   pub code: Vec<Opcode>,
-  pub exception_table_length: u16,
   pub exception_table: Vec<ExceptionTableInfo>,
-  pub attributes_count: u16,
   pub attributes: Vec<AttributeInfo>,
 }
 
@@ -39,7 +37,6 @@ pub struct ExceptionTableInfo {
 pub struct LineNumberTable {
   pub attribute_name_index: u16,
   pub attribute_length: u32,
-  pub line_number_table_length: u16,
   pub line_number_table: Vec<LineNumberTableInfo>,
 }
 

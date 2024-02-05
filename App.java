@@ -1,7 +1,5 @@
 public class App {
-  public static int main(String[] args) {
-    int i = 40;
-    i += 2;
-    return i;
+  public static long main(String[] args) {
+    return System.currentTimeMillis();
   }
 }

@@ -15,95 +15,43 @@ pub const INVOKE_DYNAMIC: u8 = 18;
 
 #[derive(Clone, Debug)]
 pub enum Entry {
-  Utf8(Utf8Info),
-  Integer(IntegerInfo),
-  Float(FloatInfo),
-  Long(LongInfo),
-  Double(DoubleInfo),
-  Class(ClassInfo),
-  String(StringInfo),
-  FieldRef(FieldRefInfo),
-  MethodRef(MethodRefInfo),
-  InterfaceMethodRef(InterfaceMethodRefInfo),
-  NameAndType(NameAndTypeInfo),
-}
-
-#[derive(Clone, Debug)]
-pub struct ClassInfo {
-  pub tag: u8,
-  pub name_index: u16,
-}
-
-#[derive(Clone, Debug)]
-pub struct FieldRefInfo {
-  pub tag: u8,
-  pub class_index: u16,
-  pub name_and_type_index: u16,
-}
-
-#[derive(Clone, Debug)]
-pub struct MethodRefInfo {
-  pub tag: u8,
-  pub class_index: u16,
-  pub name_and_type_index: u16,
-}
-
-#[derive(Clone, Debug)]
-pub struct InterfaceMethodRefInfo {
-  pub tag: u8,
-  pub class_index: u16,
-  pub name_and_type_index: u16,
-}
-
-#[derive(Clone, Debug)]
-pub struct StringInfo {
-  pub tag: u8,
-  pub string_index: u16,
-}
-
-#[derive(Clone, Debug)]
-pub struct IntegerInfo {
-  pub tag: u8,
-  pub bytes: u32,
-}
-
-#[derive(Clone, Debug)]
-pub struct FloatInfo {
-  pub tag: u8,
-  pub bytes: u32,
-}
-
-#[derive(Clone, Debug)]
-pub struct LongInfo {
-  pub tag: u8,
-  pub high_bytes: u32,
-  pub low_bytes: u32,
-}
-
-#[derive(Clone, Debug)]
-pub struct DoubleInfo {
-  pub tag: u8,
-  pub high_bytes: u32,
-  pub low_bytes: u32,
-}
-
-#[derive(Clone, Debug)]
-pub struct NameAndTypeInfo {
-  pub tag: u8,
-  pub index: u16,
-  pub descriptor_index: u16,
-}
-
-#[derive(Clone, Debug)]
-pub struct Utf8Info {
-  pub tag: u8,
-  pub length: u16,
-  pub bytes: String,
-}
-
-#[derive(Clone, Debug)]
-pub struct MethodHandleInfo {
-  pub tag: u8,
-  pub reference_kind: u8,
-  pub reference_index: u16,
+  Utf8Info {
+    bytes: String,
+  },
+  IntegerInfo {
+    bytes: u32,
+  },
+  FloatInfo {
+    bytes: u32,
+  },
+  LongInfo {
+    high_bytes: u32,
+    low_bytes: u32,
+  },
+  DoubleInfo {
+    high_bytes: u32,
+    low_bytes: u32,
+  },
+  ClassInfo {
+    name_index: u16,
+  },
+  StringInfo {
+    string_index: u16,
+  },
+  FieldRefInfo {
+    class_index: u16,
+    name_and_type_index: u16,
+  },
+  MethodRefInfo {
+    class_index: u16,
+    name_and_type_index: u16,
+  },
+  InterfaceMethodRefInfo {
+    class_index: u16,
+    name_and_type_index: u16,
+  },
+  NameAndTypeInfo {
+    index: u16,
+    descriptor_index: u16,
+  },
 }
