@@ -585,6 +585,8 @@ impl<'bytecode> RuntimeContext<'bytecode> {
           unimplemented!();
         }
 
+        opcode::RETURN => break None,
+
         opcode::SALOAD => unimplemented!(),
 
         opcode::SASTORE => unimplemented!(),
