@@ -112,27 +112,17 @@ impl<R: Read> Reader<R> {
   }
 
   pub fn read_header(&mut self) -> std::io::Result<(u32, u16, u16, u16)> {
-    let mut magic_buf = [0u8; 4];
-    self.buf.read_exact(&mut magic_buf)?;
+    let magic = self.buf.read_u32()?;
 
-    if magic_buf != [0xCA, 0xFE, 0xBA, 0xBE] {
+    if magic != 0xCAFEBABE {
       panic!("Is not a .class file.");
     }
-    let magic = u32::from_be_bytes(magic_buf);
 
-    let mut minor_version_buf = [0u8; 2];
-    self.buf.read_exact(&mut minor_version_buf)?;
-    let minor_verson = u16::from_be_bytes(minor_version_buf);
+    let minor_version = self.buf.read_u16()?;
+    let major_version = self.buf.read_u16()?;
+    let constant_pool_count = self.buf.read_u16()?;
 
-    let mut major_version_buf = [0u8; 2];
-    self.buf.read_exact(&mut major_version_buf)?;
-    let major_version = u16::from_be_bytes(major_version_buf);
-
-    let mut constant_pool_count_buf = [0u8; 2];
-    self.buf.read_exact(&mut constant_pool_count_buf)?;
-    let constant_pool_count = u16::from_be_bytes(constant_pool_count_buf);
-
-    Ok((magic, minor_verson, major_version, constant_pool_count))
+    Ok((magic, minor_version, major_version, constant_pool_count))
   }
 
   pub fn read_constant_pool(
@@ -149,19 +139,14 @@ impl<R: Read> Reader<R> {
 
     while constant_pool_counter < constant_pool_count {
       constant_pool_counter += 1;
-      let mut tag_buf = [0u8; 1];
-      self.buf.read_exact(&mut tag_buf)?;
-      let tag = u8::from_be_bytes(tag_buf);
 
+      let tag = self.buf.read_u8()?;
       let item = match tag {
         pool::UTF_8 => {
-          let mut len_buf = [0u8; 2];
-          self.buf.read_exact(&mut len_buf)?;
-          let len = u16::from_be_bytes(len_buf);
+          let len = self.buf.read_u16()?;
 
           let mut buf = vec![0u8; len as usize];
           self.buf.read_exact(&mut buf[..])?;
-
           let bytes =
             String::from_utf8(buf).expect("To be a valid UTF-8 String.");
 
@@ -172,21 +157,12 @@ impl<R: Read> Reader<R> {
           })
         }
         pool::CLASS => {
-          let mut buf = [0u8; 2];
-          self.buf.read_exact(&mut buf)?;
-
-          let name_index = u16::from_be_bytes(buf);
-
+          let name_index = self.buf.read_u16()?;
           pool::Entry::Class(pool::ClassInfo { tag, name_index })
         }
         pool::NAME_AND_TYPE => {
-          let mut buf = [0u8; 4];
-          self.buf.read_exact(&mut buf)?;
-
-          let [a, b, c, d] = buf;
-
-          let index = u16::from_be_bytes([a, b]);
-          let descriptor_index = u16::from_be_bytes([c, d]);
+          let index = self.buf.read_u16()?;
+          let descriptor_index = self.buf.read_u16()?;
 
           pool::Entry::NameAndType(pool::NameAndTypeInfo {
             tag,
@@ -195,13 +171,8 @@ impl<R: Read> Reader<R> {
           })
         }
         pool::METHOD_REF => {
-          let mut buf = [0u8; 4];
-          self.buf.read_exact(&mut buf)?;
-
-          let [a, b, c, d] = buf;
-
-          let class_index = u16::from_be_bytes([a, b]);
-          let name_and_type_index = u16::from_be_bytes([c, d]);
+          let class_index = self.buf.read_u16()?;
+          let name_and_type_index = self.buf.read_u16()?;
 
           pool::Entry::MethodRef(pool::MethodRefInfo {
             tag,
@@ -218,18 +189,7 @@ impl<R: Read> Reader<R> {
   }
 
   pub fn read_type_info(&mut self) -> std::io::Result<(u16, u16, u16, u16)> {
-    let mut buf = [0u8; 8];
-    self.buf.read_exact(&mut buf)?;
-
-    let [flag1, flag2, this1, this2, super1, super2, interface1, interface2] =
-      buf;
-
-    let access_flags = u16::from_be_bytes([flag1, flag2]);
-    let this_class = u16::from_be_bytes([this1, this2]);
-    let super_class = u16::from_be_bytes([super1, super2]);
-    let interfaces_count = u16::from_be_bytes([interface1, interface2]);
-
-    Ok((access_flags, this_class, super_class, interfaces_count))
+    Ok(self.buf.read_4_u16()?)
   }
 
   pub fn read_interfaces(
@@ -239,9 +199,7 @@ impl<R: Read> Reader<R> {
     let mut interfaces = Vec::with_capacity(interfaces_count as usize);
 
     for _ in 0..interfaces_count {
-      let mut buf = [0u8; 2];
-      self.buf.read_exact(&mut buf)?;
-      let interface = u16::from_be_bytes(buf);
+      let interface = self.buf.read_u16()?;
       interfaces.push(interface);
     }
 
@@ -252,21 +210,12 @@ impl<R: Read> Reader<R> {
     &mut self,
     constant_pool: &[pool::Entry],
   ) -> std::io::Result<(u16, Vec<FieldInfo>)> {
-    let mut fields_count_buf = [0u8; 2];
-    self.buf.read_exact(&mut fields_count_buf)?;
-    let fields_count = u16::from_be_bytes(fields_count_buf);
-
+    let fields_count = self.buf.read_u16()?;
     let mut fields = Vec::with_capacity(fields_count as usize);
 
     for _ in 0..fields_count {
-      let mut buf = [0u8; 8];
-      self.buf.read_exact(&mut buf)?;
-      let [flag1, flag2, name1, name2, desc1, desc2, attr1, attr2] = buf;
-
-      let access_flags = u16::from_be_bytes([flag1, flag2]);
-      let name_index = u16::from_be_bytes([name1, name2]);
-      let descriptor_index = u16::from_be_bytes([desc1, desc2]);
-      let attributes_count = u16::from_be_bytes([attr1, attr2]);
+      let (access_flags, name_index, descriptor_index, attributes_count) =
+        self.buf.read_4_u16()?;
 
       let attributes = Vec::with_capacity(attributes_count as usize);
 
@@ -294,12 +243,8 @@ impl<R: Read> Reader<R> {
     &mut self,
     _constant_pool: &[pool::Entry],
   ) -> std::io::Result<AttributeInfo> {
-    let mut buf = [0u8; 6];
-    self.buf.read_exact(&mut buf)?;
-    let [name1, name2, b1, b2, b3, b4] = buf;
-
-    let attribute_name_index = u16::from_be_bytes([name1, name2]);
-    let attribute_length = u32::from_be_bytes([b1, b2, b3, b4]);
+    let attribute_name_index = self.buf.read_u16()?;
+    let attribute_length = self.buf.read_u32()?;
 
     // println!("{:?}", constant_pool[attribute_name_index as usize]);
 
@@ -319,27 +264,20 @@ impl<R: Read> Reader<R> {
     &mut self,
     constant_pool: &Vec<pool::Entry>,
   ) -> std::io::Result<(u16, Vec<MethodInfo>)> {
-    let mut methods_count_buf = [0u8; 2];
-    self.buf.read_exact(&mut methods_count_buf)?;
-    let methods_count = u16::from_be_bytes(methods_count_buf);
+    let methods_count = self.buf.read_u16()?;
 
     let mut methods = Vec::with_capacity(methods_count as usize);
 
     for _ in 0..methods_count {
-      let mut buf = [0u8; 8];
-      self.buf.read_exact(&mut buf)?;
-
-      let [flag1, flag2, name1, name2, desc1, desc2, attr1, attr2] = buf;
-
-      let access_flags = u16::from_be_bytes([flag1, flag2]);
-      let name_index = u16::from_be_bytes([name1, name2]);
+      let access_flags = self.buf.read_u16()?;
+      let name_index = self.buf.read_u16()?;
       // println!("name_index: {:?}", constant_pool[name_index as usize]);
-      let descriptor_index = u16::from_be_bytes([desc1, desc2]);
+      let descriptor_index = self.buf.read_u16()?;
       // println!(
       //   "descriptor_index: {:?}",
       //   constant_pool[descriptor_index as usize]
       // );
-      let attributes_count = u16::from_be_bytes([attr1, attr2]);
+      let attributes_count = self.buf.read_u16()?;
       let mut attributes = Vec::with_capacity(attributes_count as usize);
 
       // TODO: check if this is right
@@ -366,12 +304,8 @@ impl<R: Read> Reader<R> {
     &mut self,
     constant_pool: &Vec<pool::Entry>,
   ) -> std::io::Result<AttributeInfo> {
-    let mut buf = [0u8; 6];
-    self.buf.read_exact(&mut buf)?;
-    let [name1, name2, b1, b2, b3, b4] = buf;
-
-    let attribute_name_index = u16::from_be_bytes([name1, name2]);
-    let attribute_length = u32::from_be_bytes([b1, b2, b3, b4]);
+    let attribute_name_index = self.buf.read_u16()?;
+    let attribute_length = self.buf.read_u32()?;
 
     let cp_entry = &constant_pool[attribute_name_index as usize];
 
@@ -379,22 +313,14 @@ impl<R: Read> Reader<R> {
     if let Entry::Utf8(Utf8Info { bytes, .. }) = cp_entry {
       match bytes.as_ref() {
         "LineNumberTable" => {
-          let mut line_number_table_length_buf = [0u8; 2];
-          self.buf.read_exact(&mut line_number_table_length_buf)?;
-          let line_number_table_length =
-            u16::from_be_bytes(line_number_table_length_buf);
+          let line_number_table_length = self.buf.read_u16()?;
 
           let mut line_number_table =
             Vec::with_capacity(line_number_table_length as usize);
           for _ in 0..line_number_table_length {
-            let mut buf = [0u8; 4];
-            self.buf.read_exact(&mut buf)?;
-
-            let [start_pc1, start_pc2, line_number1, line_number2] = buf;
-
             line_number_table.push(attribute_info::LineNumberTableInfo {
-              start_pc: u16::from_be_bytes([start_pc1, start_pc2]),
-              line_number: u16::from_be_bytes([line_number1, line_number2]),
+              start_pc: self.buf.read_u16()?,
+              line_number: self.buf.read_u16()?,
             });
           }
 
@@ -412,31 +338,28 @@ impl<R: Read> Reader<R> {
           })
         }
         "Code" => {
-          let mut buf = [0u8; 8];
-          self.buf.read_exact(&mut buf)?;
-          let [stack1, stack2, local1, local2, l1, l2, l3, l4] = buf;
-
-          let max_stack = u16::from_be_bytes([stack1, stack2]);
-          let max_local = u16::from_be_bytes([local1, local2]);
-          let code_length = u32::from_be_bytes([l1, l2, l3, l4]);
+          let max_stack = self.buf.read_u16()?;
+          let max_local = self.buf.read_u16()?;
+          let code_length = self.buf.read_u32()?;
 
           let mut code = vec![0; code_length as usize];
           self.buf.read_exact(&mut code[..])?;
 
-          let mut exception_table_length_buf = [0u8; 2];
-          self.buf.read_exact(&mut exception_table_length_buf)?;
-          let exception_table_length =
-            u16::from_be_bytes(exception_table_length_buf);
+          let exception_table_length = self.buf.read_u16()?;
 
-          let exception_table = Vec::new();
+          let mut exception_table = Vec::new();
           for _ in 0..exception_table_length {
-            let mut buf = [0u8; 8];
-            self.buf.read_exact(&mut buf)?;
+            let (start_pc, end_pc, handler_pc, catch_type) =
+              self.buf.read_4_u16()?;
+            exception_table.push(attribute_info::ExceptionTableInfo {
+              start_pc,
+              end_pc,
+              handler_pc,
+              catch_type,
+            });
           }
 
-          let mut attributes_count_buf = [0u8; 2];
-          self.buf.read_exact(&mut attributes_count_buf)?;
-          let attributes_count = u16::from_be_bytes(attributes_count_buf);
+          let attributes_count = self.buf.read_u16()?;
 
           let mut attributes = Vec::new();
           for _ in 0..attributes_count {
@@ -466,5 +389,50 @@ impl<R: Read> Reader<R> {
     } else {
       panic!("Attribute name index '{attribute_name_index}' needs to point to a Utf-8 entry.");
     }
+  }
+}
+
+trait ClassReaderUtils {
+  fn read_u8(&mut self) -> std::io::Result<u8>;
+
+  fn read_u16(&mut self) -> std::io::Result<u16>;
+
+  fn read_u32(&mut self) -> std::io::Result<u32>;
+
+  fn read_4_u16(&mut self) -> std::io::Result<(u16, u16, u16, u16)>;
+}
+
+impl<R> ClassReaderUtils for R
+where
+  R: Read,
+{
+  fn read_u8(&mut self) -> std::io::Result<u8> {
+    let mut buf = [0u8; 1];
+    self.read_exact(&mut buf)?;
+    Ok(u8::from_be_bytes(buf))
+  }
+
+  fn read_u16(&mut self) -> std::io::Result<u16> {
+    let mut buf = [0u8; 2];
+    self.read_exact(&mut buf)?;
+    Ok(u16::from_be_bytes(buf))
+  }
+
+  fn read_u32(&mut self) -> std::io::Result<u32> {
+    let mut buf = [0u8; 4];
+    self.read_exact(&mut buf)?;
+    Ok(u32::from_be_bytes(buf))
+  }
+
+  fn read_4_u16(&mut self) -> std::io::Result<(u16, u16, u16, u16)> {
+    let mut buf = [0u8; 8];
+    self.read_exact(&mut buf)?;
+    let [a, b, c, d, e, f, g, h] = buf;
+    Ok((
+      u16::from_be_bytes([a, b]),
+      u16::from_be_bytes([c, d]),
+      u16::from_be_bytes([e, f]),
+      u16::from_be_bytes([g, h]),
+    ))
   }
 }
