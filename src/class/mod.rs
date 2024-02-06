@@ -1,4 +1,5 @@
 pub mod attribute_info;
+pub mod context;
 pub mod field;
 pub mod method;
 pub mod pool;
@@ -40,7 +41,7 @@ pub const ACC_ANNOTATION: u16 = 0x2000;
 /// Declared as an enum type.
 pub const ACC_ENUM: u16 = 0x4000;
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Class {
   pub magic: u32,
   pub minor_version: u16,
@@ -203,6 +204,10 @@ impl<R: Read> Reader<R> {
             class_index,
             name_and_type_index,
           }
+        }
+        pool::INTEGER => {
+          let integer = self.buf.read_u32()?;
+          pool::Entry::IntegerInfo { bytes: integer }
         }
         other => todo!("{other:x}"),
       };

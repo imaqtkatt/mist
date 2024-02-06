@@ -1,5 +1,8 @@
 use crate::{
-  class::{attribute_info, pool, Class},
+  class::{
+    self, attribute_info,
+    pool::{self, Entry},
+  },
   local::Local,
   opcode,
   stack::MistStack,
@@ -9,34 +12,46 @@ use crate::{
 pub struct RuntimeContext<'bytecode> {
   local: Local,
   program: &'bytecode [u8],
+  context: &'bytecode class::context::Context,
 }
 
 impl<'bytecode> RuntimeContext<'bytecode> {
-  pub fn boot_class(
-    class: &'bytecode Class,
+  pub fn new(
+    program: &'bytecode [u8],
+    context: &'bytecode class::context::Context,
+    local: Local,
+  ) -> Self {
+    Self {
+      program,
+      context,
+      local,
+    }
+  }
+
+  pub fn boot(
+    context: &'bytecode class::context::Context,
+    main_class: &str,
     main_method: &str,
   ) -> Option<MistValue> {
-    let main = class.find_method(main_method)?;
+    let this_class = context.lookup_class(main_class)?;
+    let main = this_class.find_method(main_method)?;
 
     let attribute_info::Info::Code(code) = &main.attributes[0].info else {
       panic!()
     };
-    Self::run_code(&code, &class.constant_pool)
+    Self::run_code(code, context, &this_class.constant_pool)
   }
 
   pub fn run_code(
     code: &'bytecode attribute_info::Code,
+    context: &'bytecode class::context::Context,
     constant_pool: &[pool::Entry],
   ) -> Option<MistValue> {
     let local = Local::new(code.max_local as usize);
     let stack = MistStack::new(code.max_stack as usize);
 
-    let mut rt = Self::new(&code.code, local);
+    let mut rt = Self::new(&code.code, &context, local);
     rt.run(stack, constant_pool)
-  }
-
-  pub fn new(program: &'bytecode [u8], local: Local) -> Self {
-    Self { program, local }
   }
 }
 
@@ -485,11 +500,17 @@ impl<'bytecode> RuntimeContext<'bytecode> {
             unreachable!()
           };
 
-          let class_name = &constant_pool[*name_index as usize];
+          let Entry::Utf8Info { bytes: class_name } =
+            &constant_pool[*name_index as usize]
+          else {
+            panic!()
+          };
           let method_name = &constant_pool[*index as usize];
           let descriptor = &constant_pool[*descriptor_index as usize];
 
-          panic!("=====\n{class_name:?}\n{method_name:?} -> {descriptor:?}");
+          let class = self.context.lookup_class(class_name);
+
+          panic!("=====\n{class:?}\n{method_name:?} -> {descriptor:?}");
         }
 
         opcode::INVOKEVIRTUAL => unimplemented!(),
@@ -539,7 +560,13 @@ impl<'bytecode> RuntimeContext<'bytecode> {
         opcode::LCONST_0 => stack.lconst(0i64),
         opcode::LCONST_1 => stack.lconst(1i64),
 
-        opcode::LDC => unimplemented!(),
+        opcode::LDC => {
+          let index = self.fetch(&mut ip);
+          match &constant_pool[index as usize] {
+            Entry::IntegerInfo { bytes } => stack.iconst(*bytes as i32),
+            _ => unimplemented!(),
+          }
+        }
         opcode::LDC_W => unimplemented!(),
         opcode::LDC2_W => unimplemented!(),
 
