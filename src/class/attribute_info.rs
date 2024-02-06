@@ -19,9 +19,11 @@ pub enum AttributeInfo {
   Bytes(Vec<u8>),
 }
 
+pub type NativeCode = Option<Rc<dyn Fn(&Local) -> Option<MistValue>>>;
+
 #[derive(Clone)]
 pub struct Code {
-  pub native: Option<Rc<dyn Fn(&Local) -> Option<MistValue>>>,
+  pub native: NativeCode,
 
   pub max_stack: u16,
   pub max_local: u16,
@@ -35,9 +37,9 @@ impl Code {
     self.native.is_some()
   }
 
-  pub fn new_native(f: Box<dyn Fn(&Local) -> Option<MistValue>>) -> Self {
+  pub fn native(f: impl Fn(&Local) -> Option<MistValue> + 'static) -> Self {
     Self {
-      native: Some(f.into()),
+      native: Some(Rc::new(f)),
       max_stack: 0,
       max_local: 0,
       code: Vec::new(),

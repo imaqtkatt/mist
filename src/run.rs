@@ -15,13 +15,13 @@ const MAIN_DESCRIPTOR: &str = "([Ljava/lang/String;)J";
 pub struct RuntimeContext<'bytecode> {
   local: Local,
   program: &'bytecode [u8],
-  context: &'bytecode class::context::Context,
+  context: &'bytecode class::Context,
 }
 
 impl<'bytecode> RuntimeContext<'bytecode> {
   pub fn new(
     program: &'bytecode [u8],
-    context: &'bytecode class::context::Context,
+    context: &'bytecode class::Context,
     local: Local,
   ) -> Self {
     Self {
@@ -32,7 +32,7 @@ impl<'bytecode> RuntimeContext<'bytecode> {
   }
 
   pub fn boot(
-    context: &'bytecode class::context::Context,
+    context: &'bytecode class::Context,
     main_class: &str,
   ) -> Option<MistValue> {
     let this_class = context.lookup_class(main_class)?;
@@ -47,16 +47,16 @@ impl<'bytecode> RuntimeContext<'bytecode> {
 
   pub fn run_code(
     code: &'bytecode attribute_info::Code,
-    context: &'bytecode class::context::Context,
+    context: &'bytecode class::Context,
     constant_pool: &[pool::Entry],
   ) -> Option<MistValue> {
     let local = Local::new(code.max_local as usize);
     let stack = MistStack::new(code.max_stack as usize);
 
     if code.is_native() {
-      return code.native.clone().unwrap()(&local);
+      code.native.clone().unwrap()(&local)
     } else {
-      let mut rt = Self::new(&code.code, &context, local);
+      let mut rt = Self::new(&code.code, context, local);
       rt.run(stack, constant_pool)
     }
   }

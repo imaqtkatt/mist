@@ -1,37 +1,34 @@
-use std::{collections::HashMap, time::SystemTime};
-
-use crate::value::MistValue;
+use std::collections::HashMap;
 
 use super::{
   attribute_info::{AttributeInfo, Code},
   method::MethodInfo,
+  native::*,
   Class,
 };
 
+#[derive(Default)]
 pub struct Context {
   classes: HashMap<String, Class>,
 }
 
 impl Context {
   pub fn new() -> Self {
-    let mut this = Self {
-      classes: HashMap::new(),
-    };
+    let mut this = Self::default();
 
-    let mut foo = Class::default();
-    foo.methods.push(MethodInfo {
+    let mut java_lang_system = Class::default();
+    java_lang_system.methods.push(MethodInfo {
       access_flags: 0,
       name: String::from("currentTimeMillis"),
       descriptor: String::from("()J"),
-      attributes: vec![AttributeInfo::Code(Code::new_native(Box::new(|_| {
-        SystemTime::now()
-          .duration_since(SystemTime::UNIX_EPOCH)
-          .map(|duration| MistValue::Long(duration.as_millis() as i64))
-          .ok()
-      })))],
+      attributes: vec![AttributeInfo::Code(Code::native(
+        java::lang::system::current_time_millis,
+      ))],
     });
 
-    this.classes.insert(String::from("java/lang/System"), foo);
+    this
+      .classes
+      .insert(String::from("java/lang/System"), java_lang_system);
     this
   }
 }

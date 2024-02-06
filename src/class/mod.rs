@@ -1,7 +1,10 @@
+pub use context::Context;
+
 pub mod attribute_info;
 pub mod context;
 pub mod field;
 pub mod method;
+pub mod native;
 pub mod pool;
 
 use std::io::Read;
@@ -57,13 +60,10 @@ pub struct Class {
 
 impl Class {
   pub fn find_method(&self, method_name: &str) -> Option<&MethodInfo> {
-    for method in self.methods.iter() {
-      if method.name == method_name {
-        return Some(method);
-      }
-    }
-
-    None
+    self
+      .methods
+      .iter()
+      .find(|&method| method.name == method_name)
   }
 
   pub fn lookup_method_with_descriptor(
@@ -71,13 +71,9 @@ impl Class {
     method_name: &str,
     descriptor: &str,
   ) -> Option<&MethodInfo> {
-    for method in self.methods.iter() {
-      if method.name == method_name && method.descriptor == descriptor {
-        return Some(method);
-      }
-    }
-
-    None
+    self.methods.iter().find(|&method| {
+      method.name == method_name && method.descriptor == descriptor
+    })
   }
 }
 
