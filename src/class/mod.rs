@@ -41,49 +41,39 @@ pub const ACC_ANNOTATION: u16 = 0x2000;
 /// Declared as an enum type.
 pub const ACC_ENUM: u16 = 0x4000;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct Class {
-  pub magic: u32,
   pub minor_version: u16,
   pub major_version: u16,
-  pub constant_pool_count: u16,
   pub constant_pool: Vec<pool::Entry>,
   pub access_flags: u16,
-  pub this_class: u16,
-  pub super_class: u16,
-  pub interfaces_count: u16,
+  pub this_class: String,
+  pub super_class: String,
   pub interfaces: Vec<u16>,
-  pub fields_count: u16,
   pub fields: Vec<FieldInfo>,
-  pub methods_count: u16,
   pub methods: Vec<MethodInfo>,
-  pub attributes_count: u16,
   pub attributes: Vec<AttributeInfo>,
 }
 
 impl Class {
-  pub fn class_name(&self) -> Option<&Entry> {
-    let Entry::ClassInfo { name_index, .. } =
-      &self.constant_pool[self.this_class as usize]
-    else {
-      unreachable!()
-    };
-    if let utf8info @ Entry::Utf8Info { .. } =
-      &self.constant_pool[*name_index as usize]
-    {
-      Some(utf8info)
-    } else {
-      None
-    }
-  }
-
   pub fn find_method(&self, method_name: &str) -> Option<&MethodInfo> {
     for method in self.methods.iter() {
-      let cp_entry = &self.constant_pool[method.name_index as usize];
-      if let Entry::Utf8Info { bytes, .. } = cp_entry {
-        if bytes == method_name {
-          return Some(method);
-        }
+      if method.name == method_name {
+        return Some(method);
+      }
+    }
+
+    None
+  }
+
+  pub fn lookup_method_with_descriptor(
+    &self,
+    method_name: &str,
+    descriptor: &str,
+  ) -> Option<&MethodInfo> {
+    for method in self.methods.iter() {
+      if method.name == method_name && method.descriptor == descriptor {
+        return Some(method);
       }
     }
 
@@ -103,7 +93,7 @@ impl<R: Read> Reader<R> {
 
 impl<R: Read> Reader<R> {
   pub fn read_class(&mut self) -> std::io::Result<Class> {
-    let (magic, minor_version, major_version, constant_pool_count) =
+    let (minor_version, major_version, constant_pool_count) =
       self.read_header()?;
 
     let constant_pool = self.read_constant_pool(constant_pool_count)?;
@@ -111,38 +101,54 @@ impl<R: Read> Reader<R> {
     let (access_flags, this_class, super_class, interfaces_count) =
       self.read_type_info()?;
 
+    let Entry::ClassInfo { name_index } =
+      constant_pool[this_class as usize].clone()
+    else {
+      panic!();
+    };
+    let Entry::Utf8Info { bytes: this_class } =
+      constant_pool[name_index as usize].clone()
+    else {
+      panic!();
+    };
+
+    let Entry::ClassInfo { name_index } =
+      constant_pool[super_class as usize].clone()
+    else {
+      panic!();
+    };
+    let Entry::Utf8Info { bytes: super_class } =
+      constant_pool[name_index as usize].clone()
+    else {
+      panic!();
+    };
+
     let interfaces = self.read_interfaces(interfaces_count)?;
 
-    let (fields_count, fields) = self.read_fields(&constant_pool)?;
+    let fields = self.read_fields(&constant_pool)?;
 
-    let (methods_count, methods) = self.read_methods(&constant_pool)?;
+    let methods = self.read_methods(&constant_pool)?;
 
     // TODO: read attributes
-    let (attributes_count, attributes) = (0, Vec::new());
+    let (_attributes_count, attributes) = (0, Vec::new());
 
     let class = Class {
-      magic,
       minor_version,
       major_version,
-      constant_pool_count,
       constant_pool,
       access_flags,
       this_class,
       super_class,
-      interfaces_count,
       interfaces,
-      fields_count,
       fields,
-      methods_count,
       methods,
-      attributes_count,
       attributes,
     };
 
     Ok(class)
   }
 
-  pub fn read_header(&mut self) -> std::io::Result<(u32, u16, u16, u16)> {
+  pub fn read_header(&mut self) -> std::io::Result<(u16, u16, u16)> {
     let magic = self.buf.read_u32()?;
 
     if magic != 0xCAFEBABE {
@@ -153,7 +159,7 @@ impl<R: Read> Reader<R> {
     let major_version = self.buf.read_u16()?;
     let constant_pool_count = self.buf.read_u16()?;
 
-    Ok((magic, minor_version, major_version, constant_pool_count))
+    Ok((minor_version, major_version, constant_pool_count))
   }
 
   pub fn read_constant_pool(
@@ -209,6 +215,15 @@ impl<R: Read> Reader<R> {
           let integer = self.buf.read_u32()?;
           pool::Entry::IntegerInfo { bytes: integer }
         }
+        pool::FIELD_REF => {
+          let class_index = self.buf.read_u16()?;
+          let name_and_type_index = self.buf.read_u16()?;
+
+          pool::Entry::FieldRefInfo {
+            class_index,
+            name_and_type_index,
+          }
+        }
         other => todo!("{other:x}"),
       };
       constant_pool_entries[constant_pool_counter as usize] = item;
@@ -238,7 +253,7 @@ impl<R: Read> Reader<R> {
   pub fn read_fields(
     &mut self,
     constant_pool: &[pool::Entry],
-  ) -> std::io::Result<(u16, Vec<FieldInfo>)> {
+  ) -> std::io::Result<Vec<FieldInfo>> {
     let fields_count = self.buf.read_u16()?;
     let mut fields = Vec::with_capacity(fields_count as usize);
 
@@ -248,11 +263,22 @@ impl<R: Read> Reader<R> {
 
       let attributes = Vec::with_capacity(attributes_count as usize);
 
+      let Entry::Utf8Info { bytes: name } =
+        constant_pool[name_index as usize].clone()
+      else {
+        panic!();
+      };
+
+      let Entry::Utf8Info { bytes: descriptor } =
+        constant_pool[descriptor_index as usize].clone()
+      else {
+        panic!();
+      };
+
       let mut field_info = FieldInfo {
         access_flags,
-        name_index,
-        descriptor_index,
-        attributes_count,
+        name,
+        descriptor,
         attributes,
       };
 
@@ -265,7 +291,7 @@ impl<R: Read> Reader<R> {
       fields.push(field_info);
     }
 
-    Ok((fields_count, fields))
+    Ok(fields)
   }
 
   pub fn read_field_attribute(
@@ -293,7 +319,7 @@ impl<R: Read> Reader<R> {
   pub fn read_methods(
     &mut self,
     constant_pool: &[pool::Entry],
-  ) -> std::io::Result<(u16, Vec<MethodInfo>)> {
+  ) -> std::io::Result<Vec<MethodInfo>> {
     let methods_count = self.buf.read_u16()?;
 
     let mut methods = Vec::with_capacity(methods_count as usize);
@@ -301,12 +327,19 @@ impl<R: Read> Reader<R> {
     for _ in 0..methods_count {
       let access_flags = self.buf.read_u16()?;
       let name_index = self.buf.read_u16()?;
-      // println!("name_index: {:?}", constant_pool[name_index as usize]);
+      let Entry::Utf8Info { bytes: name } =
+        constant_pool[name_index as usize].clone()
+      else {
+        panic!()
+      };
+
       let descriptor_index = self.buf.read_u16()?;
-      // println!(
-      //   "descriptor_index: {:?}",
-      //   constant_pool[descriptor_index as usize]
-      // );
+      let Entry::Utf8Info { bytes: descriptor } =
+        constant_pool[descriptor_index as usize].clone()
+      else {
+        panic!();
+      };
+
       let attributes_count = self.buf.read_u16()?;
       let mut attributes = Vec::with_capacity(attributes_count as usize);
 
@@ -318,16 +351,15 @@ impl<R: Read> Reader<R> {
 
       let method_info = MethodInfo {
         access_flags,
-        name_index,
-        descriptor_index,
-        attributes_count,
+        name,
+        descriptor,
         attributes,
       };
 
       methods.push(method_info);
     }
 
-    Ok((methods_count, methods))
+    Ok(methods)
   }
 
   pub fn read_method_attribute(
@@ -360,11 +392,9 @@ impl<R: Read> Reader<R> {
             line_number_table,
           };
 
-          Ok(AttributeInfo {
-            attribute_name_index,
-            // attribute_length,
-            info: attribute_info::Info::LineNumberTable(line_number_table),
-          })
+          Ok(attribute_info::AttributeInfo::LineNumberTable(
+            line_number_table,
+          ))
         }
         "Code" => {
           let max_stack = self.buf.read_u16()?;
@@ -397,21 +427,15 @@ impl<R: Read> Reader<R> {
           }
 
           let code = Code {
+            native: None,
             max_stack,
             max_local,
-            code_length,
             code,
-            // exception_table_length,
             exception_table,
-            // attributes_count,
             attributes,
           };
 
-          Ok(AttributeInfo {
-            attribute_name_index,
-            // attribute_length,
-            info: attribute_info::Info::Code(code),
-          })
+          Ok(attribute_info::AttributeInfo::Code(code))
         }
         other => unimplemented!("{other:?}"),
       }

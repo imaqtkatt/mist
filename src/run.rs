@@ -9,6 +9,9 @@ use crate::{
   value::MistValue,
 };
 
+const MAIN: &str = "main";
+const MAIN_DESCRIPTOR: &str = "([Ljava/lang/String;)J";
+
 pub struct RuntimeContext<'bytecode> {
   local: Local,
   program: &'bytecode [u8],
@@ -31,12 +34,12 @@ impl<'bytecode> RuntimeContext<'bytecode> {
   pub fn boot(
     context: &'bytecode class::context::Context,
     main_class: &str,
-    main_method: &str,
   ) -> Option<MistValue> {
     let this_class = context.lookup_class(main_class)?;
-    let main = this_class.find_method(main_method)?;
+    let main =
+      this_class.lookup_method_with_descriptor(MAIN, MAIN_DESCRIPTOR)?;
 
-    let attribute_info::Info::Code(code) = &main.attributes[0].info else {
+    let attribute_info::AttributeInfo::Code(code) = &main.attributes[0] else {
       panic!()
     };
     Self::run_code(code, context, &this_class.constant_pool)
@@ -50,8 +53,12 @@ impl<'bytecode> RuntimeContext<'bytecode> {
     let local = Local::new(code.max_local as usize);
     let stack = MistStack::new(code.max_stack as usize);
 
-    let mut rt = Self::new(&code.code, &context, local);
-    rt.run(stack, constant_pool)
+    if code.is_native() {
+      return code.native.clone().unwrap()(&local);
+    } else {
+      let mut rt = Self::new(&code.code, &context, local);
+      rt.run(stack, constant_pool)
+    }
   }
 }
 
@@ -66,7 +73,7 @@ impl<'bytecode> RuntimeContext<'bytecode> {
     loop {
       let instruction = self.fetch(&mut ip);
 
-      // println!("{instruction:x}");
+      println!("{instruction:x}");
       match instruction {
         opcode::ACONST_NULL => stack.aconst_null(),
 
@@ -503,14 +510,39 @@ impl<'bytecode> RuntimeContext<'bytecode> {
           let Entry::Utf8Info { bytes: class_name } =
             &constant_pool[*name_index as usize]
           else {
-            panic!()
+            panic!();
           };
-          let method_name = &constant_pool[*index as usize];
-          let descriptor = &constant_pool[*descriptor_index as usize];
+          let Entry::Utf8Info { bytes: method_name } =
+            &constant_pool[*index as usize]
+          else {
+            panic!();
+          };
+          let Entry::Utf8Info { bytes: descriptor } =
+            &constant_pool[*descriptor_index as usize]
+          else {
+            panic!();
+          };
 
-          let class = self.context.lookup_class(class_name);
+          let method =
+            self
+              .context
+              .lookup_method(class_name, method_name, descriptor);
 
-          panic!("=====\n{class:?}\n{method_name:?} -> {descriptor:?}");
+          if let Some(method) = method {
+            let attribute_info::AttributeInfo::Code(code) =
+              &method.attributes[0]
+            else {
+              panic!();
+            };
+
+            if let Some(ret) =
+              RuntimeContext::run_code(code, self.context, constant_pool)
+            {
+              stack.push(ret);
+            }
+          } else {
+            panic!("Could not find method '{method_name:?}'");
+          }
         }
 
         opcode::INVOKEVIRTUAL => unimplemented!(),

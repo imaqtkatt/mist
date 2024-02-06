@@ -1,28 +1,63 @@
-use crate::opcode::Opcode;
+use core::fmt;
+use std::rc::Rc;
+
+use crate::{local::Local, opcode::Opcode, value::MistValue};
+
+// #[derive(Clone, Debug)]
+// pub struct AttributeInfo {
+//   // pub attribute_name_index: u16,
+//   // pub attribute_name: String,
+//   // pub attribute_length: u32,
+//   // pub info: Vec<u8>,
+//   pub info: Info,
+// }
 
 #[derive(Clone, Debug)]
-pub struct AttributeInfo {
-  pub attribute_name_index: u16,
-  // pub attribute_length: u32,
-  // pub info: Vec<u8>,
-  pub info: Info,
-}
-
-#[derive(Clone, Debug)]
-pub enum Info {
+pub enum AttributeInfo {
   Code(Code),
   LineNumberTable(LineNumberTable),
   Bytes(Vec<u8>),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct Code {
+  pub native: Option<Rc<dyn Fn(&Local) -> Option<MistValue>>>,
+
   pub max_stack: u16,
   pub max_local: u16,
-  pub code_length: u32,
   pub code: Vec<Opcode>,
   pub exception_table: Vec<ExceptionTableInfo>,
   pub attributes: Vec<AttributeInfo>,
+}
+
+impl Code {
+  pub fn is_native(&self) -> bool {
+    self.native.is_some()
+  }
+
+  pub fn new_native(f: Box<dyn Fn(&Local) -> Option<MistValue>>) -> Self {
+    Self {
+      native: Some(f.into()),
+      max_stack: 0,
+      max_local: 0,
+      code: Vec::new(),
+      exception_table: Vec::new(),
+      attributes: Vec::new(),
+    }
+  }
+}
+
+impl fmt::Debug for Code {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    f.debug_struct("Code")
+      .field("native", &self.native.is_some())
+      .field("max_stack", &self.max_stack)
+      .field("max_local", &self.max_local)
+      .field("code", &self.code)
+      .field("exception_table", &self.exception_table)
+      .field("attributes", &self.attributes)
+      .finish()
+  }
 }
 
 #[derive(Clone, Debug)]

@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fs::File};
+use std::fs::File;
 
 use crate::run::RuntimeContext;
 
@@ -21,10 +21,10 @@ fn run() -> std::io::Result<()> {
   let class = reader.read_class()?;
   println!("{class:?}");
 
-  let mut ctx = class::context::Context::new(HashMap::new());
+  let mut ctx = class::context::Context::new();
   ctx.add_class(class);
 
-  let result = RuntimeContext::boot(&ctx, "App", "main");
+  let result = RuntimeContext::boot(&ctx, "App");
   println!("result: {result:?}");
 
   Ok(())
