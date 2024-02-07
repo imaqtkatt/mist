@@ -16,6 +16,7 @@ impl Context {
   pub fn new() -> Self {
     let mut this = Self::default();
 
+    // TODO: refactor this
     let mut java_lang_system = Class::default();
     java_lang_system.methods.push(MethodInfo {
       access_flags: 0,
@@ -23,12 +24,27 @@ impl Context {
       descriptor: String::from("()J"),
       attributes: vec![AttributeInfo::Code(Code::native(
         java::lang::system::current_time_millis,
+        0,
+      ))],
+    });
+
+    let mut java_lang_math = Class::default();
+    java_lang_math.methods.push(MethodInfo {
+      access_flags: 0,
+      name: String::from("sqrt"),
+      descriptor: String::from("(D)D"),
+      attributes: vec![AttributeInfo::Code(Code::native(
+        java::lang::math::sqrt,
+        1,
       ))],
     });
 
     this
       .classes
       .insert(String::from("java/lang/System"), java_lang_system);
+    this
+      .classes
+      .insert(String::from("java/lang/Math"), java_lang_math);
     this
   }
 }

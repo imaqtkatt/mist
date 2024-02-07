@@ -172,6 +172,7 @@ impl<R: Read> Reader<R> {
 
     while constant_pool_counter < constant_pool_count {
       constant_pool_counter += 1;
+      let mut double_width = false;
 
       let tag = self.buf.read_u8()?;
       let item = match tag {
@@ -220,9 +221,33 @@ impl<R: Read> Reader<R> {
             name_and_type_index,
           }
         }
+        pool::LONG => {
+          let high_bytes = self.buf.read_u32()?;
+          let low_bytes = self.buf.read_u32()?;
+          double_width = true;
+
+          pool::Entry::LongInfo {
+            high_bytes,
+            low_bytes,
+          }
+        }
+        pool::DOUBLE => {
+          let high_bytes = self.buf.read_u32()?;
+          let low_bytes = self.buf.read_u32()?;
+          double_width = true;
+
+          pool::Entry::DoubleInfo {
+            high_bytes,
+            low_bytes,
+          }
+        }
         other => todo!("{other:x}"),
       };
+      println!("{constant_pool_counter} = {item:?}");
       constant_pool_entries[constant_pool_counter as usize] = item;
+      if double_width {
+        constant_pool_counter += 1;
+      }
     }
 
     Ok(constant_pool_entries)

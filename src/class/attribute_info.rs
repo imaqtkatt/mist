@@ -37,11 +37,14 @@ impl Code {
     self.native.is_some()
   }
 
-  pub fn native(f: impl Fn(&Local) -> Option<MistValue> + 'static) -> Self {
+  pub fn native(
+    f: impl Fn(&Local) -> Option<MistValue> + 'static,
+    max_local: u16,
+  ) -> Self {
     Self {
       native: Some(Rc::new(f)),
+      max_local,
       max_stack: 0,
-      max_local: 0,
       code: Vec::new(),
       exception_table: Vec::new(),
       attributes: Vec::new(),

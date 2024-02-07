@@ -1,4 +1,4 @@
-use std::fs::File;
+use std::{env, fs::File};
 
 use crate::run::RuntimeContext;
 
@@ -10,21 +10,24 @@ pub mod stack;
 pub mod value;
 
 fn main() {
-  if let Err(e) = run() {
+  let args = env::args().collect::<Vec<String>>();
+
+  if let Err(e) = run(&args) {
     eprintln!("{e}");
   }
 }
 
-fn run() -> std::io::Result<()> {
-  let file = File::open("./App.class")?;
+fn run(args: &[String]) -> std::io::Result<()> {
+  let file = File::open(&args[1])?;
   let mut reader = class::Reader::new(file);
   let class = reader.read_class()?;
-  println!("{class:?}");
+  let class_name = class.this_class.clone();
+  // println!("{class:?}");
 
   let mut ctx = class::context::Context::new();
   ctx.add_class(class);
 
-  let result = RuntimeContext::boot(&ctx, "App");
+  let result = RuntimeContext::boot(&ctx, &class_name);
   println!("result: {result:?}");
 
   Ok(())

@@ -11,5 +11,16 @@ pub mod java {
           .ok()
       }
     }
+
+    pub mod math {
+      use crate::{local::Local, value::MistValue};
+
+      pub fn sqrt(local: &Local) -> Option<MistValue> {
+        let MistValue::Double(double) = local.load(0) else {
+          panic!();
+        };
+        Some(MistValue::Double(double.sqrt()))
+      }
+    }
   }
 }

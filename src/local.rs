@@ -1,5 +1,6 @@
 use crate::value::MistValue;
 
+#[derive(Debug)]
 pub struct Local {
   variables: Vec<MistValue>,
 }

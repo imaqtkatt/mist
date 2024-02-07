@@ -10,7 +10,7 @@ use crate::{
 };
 
 const MAIN: &str = "main";
-const MAIN_DESCRIPTOR: &str = "([Ljava/lang/String;)J";
+const MAIN_DESCRIPTOR: &str = "([Ljava/lang/String;)I";
 
 pub struct RuntimeContext<'bytecode> {
   local: Local,
@@ -42,20 +42,47 @@ impl<'bytecode> RuntimeContext<'bytecode> {
     let attribute_info::AttributeInfo::Code(code) = &main.attributes[0] else {
       panic!()
     };
-    Self::run_code(code, context, &this_class.constant_pool)
-  }
 
-  pub fn run_code(
-    code: &'bytecode attribute_info::Code,
-    context: &'bytecode class::Context,
-    constant_pool: &[pool::Entry],
-  ) -> Option<MistValue> {
     let local = Local::new(code.max_local as usize);
     let stack = MistStack::new(code.max_stack as usize);
+
+    let mut rt = Self::new(&code.code, context, local);
+    rt.run(stack, &this_class.constant_pool)
+  }
+
+  // pub fn run_code(
+  //   code: &'bytecode attribute_info::Code,
+  //   context: &'bytecode class::Context,
+  //   constant_pool: &[pool::Entry],
+  // ) -> Option<MistValue> {
+  //   let local = Local::new(code.max_local as usize);
+  //   let stack = MistStack::new(code.max_stack as usize);
+
+  //   if code.is_native() {
+  //     code.native.clone().unwrap()(&local)
+  //   } else {
+  //     let mut rt = Self::new(&code.code, context, local);
+  //     rt.run(stack, constant_pool)
+  //   }
+  // }
+
+  fn run_method(
+    code: &'bytecode attribute_info::Code,
+    context: &'bytecode class::Context,
+    stack: &mut MistStack,
+    constant_pool: &[pool::Entry],
+  ) -> Option<MistValue> {
+    let mut local = Local::new(code.max_local as usize);
+
+    for index in (0..code.max_local).rev() {
+      local.store(index as usize, stack.pop());
+    }
 
     if code.is_native() {
       code.native.clone().unwrap()(&local)
     } else {
+      let stack = MistStack::new(code.max_stack as usize);
+
       let mut rt = Self::new(&code.code, context, local);
       rt.run(stack, constant_pool)
     }
@@ -73,7 +100,7 @@ impl<'bytecode> RuntimeContext<'bytecode> {
     loop {
       let instruction = self.fetch(&mut ip);
 
-      println!("{instruction:x}");
+      // println!("{instruction:x}");
       match instruction {
         opcode::ACONST_NULL => stack.aconst_null(),
 
@@ -535,9 +562,12 @@ impl<'bytecode> RuntimeContext<'bytecode> {
               panic!();
             };
 
-            if let Some(ret) =
-              RuntimeContext::run_code(code, self.context, constant_pool)
-            {
+            if let Some(ret) = RuntimeContext::run_method(
+              code,
+              self.context,
+              &mut stack,
+              constant_pool,
+            ) {
               stack.push(ret);
             }
           } else {
@@ -600,7 +630,26 @@ impl<'bytecode> RuntimeContext<'bytecode> {
           }
         }
         opcode::LDC_W => unimplemented!(),
-        opcode::LDC2_W => unimplemented!(),
+        opcode::LDC2_W => {
+          let indexbyte1 = self.fetch(&mut ip) as usize;
+          let indexbyte2 = self.fetch(&mut ip) as usize;
+          let index = (indexbyte1 << 8 | indexbyte2) as usize;
+          match &constant_pool[index] {
+            Entry::DoubleInfo {
+              high_bytes,
+              low_bytes,
+            } => {
+              let mut double = 0u64;
+              // println!("{high_bytes}/{low_bytes}");
+              // double &= 0xFFFF;
+              double |= *low_bytes as u64;
+              // double &= 0xFFFF0000;
+              double |= (*high_bytes as u64) << 32;
+              stack.dconst(f64::from_bits(double));
+            }
+            a => unimplemented!("{a:?}"),
+          }
+        }
 
         opcode::LDIV => stack.ldiv(),
 
