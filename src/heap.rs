@@ -2,19 +2,8 @@ use crate::value::MistValue;
 
 #[derive(Debug)]
 pub struct Heap {
-  // capacity: usize,
   memory: Vec<Object>,
 }
-
-// #[derive(Clone)]
-// pub enum Object {
-//   Null,
-//   Object {
-//     class: usize,
-//     len: usize,
-//     mem: Vec<MistValue>,
-//   }
-// }
 
 #[derive(Debug)]
 pub struct Object {
@@ -36,7 +25,6 @@ impl Object {
 impl Heap {
   pub fn new() -> Self {
     Self {
-      // capacity,
       memory: vec![Object::null()],
     }
   }
@@ -48,7 +36,7 @@ impl Heap {
     self.memory.push(Object {
       id,
       class: 0, // FIXME
-      mem: vec![MistValue::ObjectReference(0); count as usize],
+      mem: vec![MistValue::Integer(0); count as usize],
     });
     id
   }
@@ -56,5 +44,9 @@ impl Heap {
   pub fn iastore(&mut self, arrayref: usize, index: i32, value: i32) {
     let object = &mut self.memory[arrayref];
     object.mem[index as usize] = MistValue::Integer(value);
+  }
+
+  pub fn get(&self, arrayref: usize, index: i32) -> MistValue {
+    self.memory[arrayref].mem[index as usize]
   }
 }

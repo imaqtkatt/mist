@@ -225,7 +225,7 @@ pub const I2S: Opcode = 0x93;
 pub const IADD: Opcode = 0x60;
 
 /// Load int from array.
-pub const IADLOAD: Opcode = 0x2e;
+pub const IALOAD: Opcode = 0x2e;
 
 /// Boolean AND int.
 pub const IAND: Opcode = 0x7e;

@@ -271,21 +271,21 @@ impl<'bytecode> RuntimeContext<'bytecode> {
 
         opcode::IADD => stack.iadd(),
 
-        opcode::IADLOAD => unimplemented!(),
+        opcode::IALOAD => {
+          let index: i32 = stack.pop().into();
+          let arrayref: usize = stack.pop().into();
+
+          stack.push(heap.get(arrayref, index));
+        }
 
         opcode::IAND => stack.iand(),
 
         opcode::IASTORE => {
-          // println!("here");
           let value: i32 = stack.pop().into();
           let index: i32 = stack.pop().into();
           let arrayref: usize = stack.pop().into();
-          // println!("...");
-
 
           heap.iastore(arrayref, index, value);
-          println!("heap: {heap:?}");
-          // unimplemented!("{stack:?}");
         }
 
         opcode::ICONST_M1 => stack.iconst(-1),
