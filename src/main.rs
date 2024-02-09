@@ -8,6 +8,7 @@ pub mod opcode;
 pub mod run;
 pub mod stack;
 pub mod value;
+pub mod heap;
 
 fn main() {
   let args = env::args().collect::<Vec<String>>();
@@ -18,8 +19,8 @@ fn main() {
 }
 
 fn run(args: &[String]) -> std::io::Result<()> {
-  let file = File::open(&args[1])?;
-  let mut reader = class::Reader::new(file);
+  let class_file = File::open(format!("{}.class", &args[1]))?;
+  let mut reader = class::Reader::new(class_file);
   let class = reader.read_class()?;
   let class_name = class.this_class.clone();
   // println!("{class:?}");

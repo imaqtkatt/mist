@@ -3,6 +3,7 @@ use crate::{
     self, attribute_info,
     pool::{self, Entry},
   },
+  heap::Heap,
   local::Local,
   opcode,
   stack::MistStack,
@@ -47,7 +48,7 @@ impl<'bytecode> RuntimeContext<'bytecode> {
     let stack = MistStack::new(code.max_stack as usize);
 
     let mut rt = Self::new(&code.code, context, local);
-    rt.run(stack, &this_class.constant_pool)
+    rt.run(stack, Heap::new(), &this_class.constant_pool)
   }
 
   // pub fn run_code(
@@ -84,7 +85,7 @@ impl<'bytecode> RuntimeContext<'bytecode> {
       let stack = MistStack::new(code.max_stack as usize);
 
       let mut rt = Self::new(&code.code, context, local);
-      rt.run(stack, constant_pool)
+      rt.run(stack, Heap::new(), constant_pool)
     }
   }
 }
@@ -93,6 +94,7 @@ impl<'bytecode> RuntimeContext<'bytecode> {
   fn run(
     &mut self,
     mut stack: MistStack,
+    mut heap: Heap,
     constant_pool: &[pool::Entry],
   ) -> Option<MistValue> {
     let mut ip = 0;
@@ -273,7 +275,18 @@ impl<'bytecode> RuntimeContext<'bytecode> {
 
         opcode::IAND => stack.iand(),
 
-        opcode::IASTORE => unimplemented!(),
+        opcode::IASTORE => {
+          // println!("here");
+          let value: i32 = stack.pop().into();
+          let index: i32 = stack.pop().into();
+          let arrayref: usize = stack.pop().into();
+          // println!("...");
+
+
+          heap.iastore(arrayref, index, value);
+          println!("heap: {heap:?}");
+          // unimplemented!("{stack:?}");
+        }
 
         opcode::ICONST_M1 => stack.iconst(-1),
         opcode::ICONST_0 => stack.iconst(0),
@@ -695,6 +708,15 @@ impl<'bytecode> RuntimeContext<'bytecode> {
         opcode::MONITOREXIT => unimplemented!(),
 
         opcode::MULTIANEWARRAY => unimplemented!(),
+
+        opcode::NEWARRAY => {
+          let atype = self.fetch(&mut ip);
+          let count: i32 = stack.pop().into();
+
+          let r#ref = heap.newarray(atype, count);
+          stack.push(MistValue::ObjectReference(r#ref));
+          println!("heap: {heap:?}");
+        }
 
         opcode::NEW => unimplemented!(),
 

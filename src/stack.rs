@@ -2,7 +2,7 @@ use std::{cmp::Ordering, ops::Neg};
 
 use crate::value::MistValue;
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct MistStack {
   stack: Vec<MistValue>,
 }

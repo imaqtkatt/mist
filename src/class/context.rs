@@ -71,7 +71,6 @@ impl Context {
     method_name: &str,
     descriptor: &str,
   ) -> Option<&MethodInfo> {
-    println!("{method_name} {descriptor}");
     let class = self.lookup_class(class_name)?;
 
     class.lookup_method_with_descriptor(method_name, descriptor)

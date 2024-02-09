@@ -243,7 +243,7 @@ impl<R: Read> Reader<R> {
         }
         other => todo!("{other:x}"),
       };
-      println!("{constant_pool_counter} = {item:?}");
+      // println!("{constant_pool_counter} = {item:?}");
       constant_pool_entries[constant_pool_counter as usize] = item;
       if double_width {
         constant_pool_counter += 1;
